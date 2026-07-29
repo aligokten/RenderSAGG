@@ -1,0 +1,24 @@
+# Kendi sunucunuz/VPS için: `docker compose up -d --build`
+# Değerleri yanındaki .env dosyasından okur (bkz. .env.example).
+services:
+  panel:
+    build: .
+    image: rendersagg
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      RENDER_PROVIDER: ${RENDER_PROVIDER:-mock}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash-image}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-image-1}
+      PANEL_PASSWORD: ${PANEL_PASSWORD:-}
+      ALLOW_CLIENT_KEY: ${ALLOW_CLIENT_KEY:-false}
+      RATE_LIMIT_PER_HOUR: ${RATE_LIMIT_PER_HOUR:-20}
+      OUTPUT_LONG_EDGE: ${OUTPUT_LONG_EDGE:-3840}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+    mem_limit: 1g

@@ -1,0 +1,39 @@
+# Fly.io — `fly launch --no-deploy` sonrası app adını değiştirip `fly deploy` çalıştırın.
+# Anahtarlar depoya yazılmaz: `fly secrets set GEMINI_API_KEY=... PANEL_PASSWORD=...`
+app = "rendersagg"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  HOST = "0.0.0.0"
+  RENDER_PROVIDER = "gemini"
+  OUTPUT_LONG_EDGE = "3840"
+  RATE_LIMIT_PER_HOUR = "20"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 4
+    hard_limit = 8
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/healthz"
+
+# 4K yükseltme bellek ister; 512 MB altına inmeyin.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

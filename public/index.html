@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mimari Render Fotogerçekçileştirme Paneli</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>" />
+</head>
+<body>
+  <div class="lock" id="lockScreen" hidden>
+    <form class="lock-card" id="lockForm">
+      <span class="brand-mark">◲</span>
+      <h2>Panel kilitli</h2>
+      <p>Bu panel şifreyle korunuyor. Devam etmek için erişim şifresini girin.</p>
+      <input type="password" id="lockPassword" placeholder="Erişim şifresi" autocomplete="current-password" required />
+      <button class="primary" type="submit">Giriş</button>
+      <p class="lock-error" id="lockError" hidden></p>
+    </form>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◲</span>
+      <div>
+        <h1>Mimari Render Fotogerçekçileştirme</h1>
+        <p>Mimariyi koru, sadece gerçekçiliği geliştir — 4K PNG çıktı</p>
+      </div>
+    </div>
+    <div class="provider-badge" id="providerBadge">sağlayıcı yükleniyor…</div>
+  </header>
+
+  <main class="layout">
+    <!-- ---------------- SOL: KONTROLLER ---------------- -->
+    <section class="panel controls" aria-label="Ayarlar">
+      <div class="block">
+        <h2><span class="step-no">1</span> Ham render</h2>
+        <div class="dropzone" id="renderDrop" tabindex="0" role="button" aria-label="Ham render yükle">
+          <input type="file" id="renderInput" accept="image/png,image/jpeg,image/webp" hidden />
+          <div class="dz-empty">
+            <strong>Görseli sürükleyin</strong>
+            <span>veya tıklayarak seçin — PNG / JPG / WEBP</span>
+          </div>
+          <div class="dz-filled" hidden>
+            <img alt="Ham render önizlemesi" />
+            <div class="dz-meta"></div>
+            <button type="button" class="ghost small" data-clear="render">Kaldır</button>
+          </div>
+        </div>
+        <p class="hint" id="unsupportedHint" hidden></p>
+      </div>
+
+      <div class="block">
+        <h2><span class="step-no">2</span> Referans görseller <span class="optional">opsiyonel</span></h2>
+        <p class="hint">Referanslardan yalnızca malzeme, renk, ışık, atmosfer ve peyzaj karakteri alınır. Referansın mimarisi projeye taşınmaz.</p>
+        <div class="ref-grid" id="refGrid">
+          <button type="button" class="ref-add" id="refAdd">+ Referans ekle</button>
+          <input type="file" id="refInput" accept="image/png,image/jpeg,image/webp" multiple hidden />
+        </div>
+      </div>
+
+      <div class="block">
+        <h2><span class="step-no">3</span> Çalışma modu</h2>
+        <div class="modes" id="modes"></div>
+      </div>
+
+      <div class="block">
+        <h2><span class="step-no">4</span> Sahne ayarları</h2>
+        <div class="grid-2">
+          <label>Sahne türü
+            <select id="scene">
+              <option value="auto">Otomatik belirle</option>
+              <option value="exterior">Dış mekân</option>
+              <option value="interior">İç mekân</option>
+            </select>
+          </label>
+          <label>Zaman
+            <select id="time">
+              <option value="auto">Kaynağı koru</option>
+              <option value="day">Gündüz (yumuşak doğal)</option>
+              <option value="overcast">Kapalı hava</option>
+              <option value="goldenHour">Altın saat</option>
+              <option value="dusk">Alacakaranlık</option>
+              <option value="night">Gece</option>
+            </select>
+          </label>
+          <label>Hava
+            <select id="weather">
+              <option value="auto">Kaynağı koru</option>
+              <option value="clear">Açık</option>
+              <option value="cloudy">Parçalı bulutlu</option>
+              <option value="rain">Yağmur sonrası</option>
+              <option value="snow">Kar</option>
+            </select>
+          </label>
+          <label>En-boy oranı
+            <select id="aspect">
+              <option value="source">Kaynak oranı (önerilen)</option>
+              <option value="16:9">16:9</option>
+              <option value="3:2">3:2</option>
+              <option value="4:3">4:3</option>
+              <option value="1:1">1:1</option>
+              <option value="9:16">9:16</option>
+            </select>
+          </label>
+          <label>Çıktı çözünürlüğü
+            <select id="outputLongEdge">
+              <option value="3840" selected>4K — uzun kenar 3840 px</option>
+              <option value="2560">2.5K — 2560 px</option>
+              <option value="1920">Full HD — 1920 px</option>
+              <option value="5120">5K — 5120 px</option>
+            </select>
+          </label>
+          <label>Sağlayıcı
+            <select id="provider"></select>
+          </label>
+        </div>
+        <p class="hint" id="aspectHint" hidden>Kaynaktan farklı bir oran seçtiniz: sahne kırpılmaz, kenarlardan genişletilerek bu orana getirilir.</p>
+
+        <div id="apiKeyRow" hidden>
+          <label>Kendi API anahtarım
+            <input type="password" id="apiKey" placeholder="API anahtarını yapıştırın" autocomplete="off" />
+          </label>
+          <p class="hint" id="apiKeyHint">Anahtar yalnızca bu isteğin süresince kullanılır; sunucuda saklanmaz, loglanmaz. Tarayıcıda saklanmasını isterseniz aşağıdaki kutuyu işaretleyin.</p>
+          <label class="inline"><input type="checkbox" id="rememberKey" /> Bu tarayıcıda hatırla</label>
+        </div>
+      </div>
+
+      <div class="block">
+        <h2><span class="step-no">5</span> Ek isteklerim</h2>
+        <textarea id="prompt" rows="6" placeholder="Örn: Cephedeki ahşap kaplama termowood olsun, havuz suyu daha berrak görünsün, girişteki bitkilendirme Akdeniz iklimine uygun olsun. Bunun dışında hiçbir şeyi değiştirme."></textarea>
+        <div class="chips" id="promptChips"></div>
+        <p class="hint">Revizyon ve Malzeme Alternatifi modlarında yalnızca burada yazdığınız değişiklik uygulanır; kalan her şey birebir korunur.</p>
+      </div>
+
+      <button class="primary" id="submit" disabled>Fotogerçekçileştir</button>
+      <p class="hint center" id="submitHint">Başlamak için ham renderı yükleyin.</p>
+    </section>
+
+    <!-- ---------------- SAĞ: SONUÇ ---------------- -->
+    <section class="panel output" aria-label="Sonuç">
+      <div id="idleState">
+        <h2>Çıktı</h2>
+        <p class="lead">Panel, yüklediğiniz ham renderı mimari projeye sadık kalarak fotogerçekçi hale getirir ve indirilebilir PNG üretir.</p>
+        <ul class="rules">
+          <li><b>Korunur:</b> kütle, kat adedi, duvar, kolon, döşeme, kapı-pencere konum ve oranları, çıkma, balkon, teras, çatı, saçak, merdiven, korkuluk, havuz biçimi, sabit mobilya, iç yerleşim, parsel sınırı, kamera ve kadraj.</li>
+          <li><b>Geliştirilir:</b> doku ve malzeme kalitesi, ışık-gölge ve pozlama, cam ve yansımalar, gökyüzü ve atmosfer, peyzaj gerçekçiliği, render gürültüsü ve tırtıklanma, renk dengesi ve netlik.</li>
+          <li><b>Eklenmez:</b> yeni kapı, pencere, balkon, kat, çatı, duvar veya taşıyıcı eleman; yazı, logo, filigran, çerçeve.</li>
+        </ul>
+        <div class="note">
+          SKP, MAX, RVT, PLN, DWG, 3DM, BLEND gibi dosyaların geometrisi güvenilir biçimde okunamaz. Bu panel PNG/JPG ham render ile çalışır; ek olarak farklı kamera açıları, clay render, normal/depth map veya Material ID görselleri referans olarak yüklenebilir.
+        </div>
+      </div>
+
+      <div id="progressState" hidden>
+        <h2>İşleniyor</h2>
+        <ol class="steps" id="steps"></ol>
+        <div class="spinner"></div>
+      </div>
+
+      <div id="errorState" hidden>
+        <h2>İşlem tamamlanamadı</h2>
+        <p class="error-text" id="errorText"></p>
+        <button class="ghost" id="errorBack">Ayarlara dön</button>
+      </div>
+
+      <div id="resultState" hidden>
+        <div class="result-head">
+          <h2>Sonuç</h2>
+          <a class="primary small" id="downloadBtn" download>PNG indir</a>
+        </div>
+
+        <div class="compare" id="compare">
+          <img id="afterImg" alt="Fotogerçekçileştirilmiş render" />
+          <div class="compare-before" id="beforeWrap">
+            <img id="beforeImg" alt="Ham render" />
+          </div>
+          <div class="compare-handle" id="compareHandle"><span></span></div>
+          <div class="compare-label left">HAM</div>
+          <div class="compare-label right">SONUÇ</div>
+        </div>
+        <input type="range" id="compareRange" min="0" max="100" value="50" aria-label="Karşılaştırma sürgüsü" />
+
+        <p class="summary" id="summary"></p>
+
+        <dl class="facts" id="facts"></dl>
+
+        <div class="qc">
+          <h3>Kalite kontrolü</h3>
+          <p class="hint">Teslimden önce sonucu bu maddelere göre doğrulayın. Eğri duvar, bozuk doğrama, eriyen eleman, kesilen kolon, birleşmeyen korkuluk, havada duran nesne veya anlamsız yazı varsa sonucu tamamlanmış saymayın ve yeniden üretin.</p>
+          <ul id="checklist"></ul>
+        </div>
+
+        <details class="prompt-dump">
+          <summary>Modele gönderilen talimat</summary>
+          <pre id="instructionDump"></pre>
+        </details>
+
+        <div class="result-actions">
+          <button class="ghost" id="againBtn">Aynı ayarlarla yeniden üret</button>
+          <button class="ghost" id="editBtn">Ayarları düzenle</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>

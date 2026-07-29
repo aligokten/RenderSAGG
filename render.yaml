@@ -1,0 +1,26 @@
+# Render.com — GitHub deposunu bağladıktan sonra bu dosya otomatik okunur.
+# Ücretli olmayan planda servis boşta uykuya geçer; ilk istek birkaç saniye gecikebilir.
+services:
+  - type: web
+    name: rendersagg
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm ci --omit=dev
+    startCommand: node server/index.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RENDER_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false        # değeri Render panelinden girilir, depoya yazılmaz
+      - key: PANEL_PASSWORD
+        sync: false        # paneli herkese açık bırakmamak için mutlaka doldurun
+      - key: ALLOW_CLIENT_KEY
+        value: "false"
+      - key: RATE_LIMIT_PER_HOUR
+        value: "20"
+      - key: OUTPUT_LONG_EDGE
+        value: "3840"

@@ -1,0 +1,20 @@
+{
+  "name": "rendersagg",
+  "version": "1.0.0",
+  "description": "Mimari render fotogerçekçileştirme paneli — geometriyi ve kamerayı koruyarak render iyileştirme, 4K PNG çıktı",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "sharp": "^0.35.3"
+  }
+}
