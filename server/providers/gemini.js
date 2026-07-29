@@ -97,6 +97,49 @@ function isFieldError(payload) {
 }
 
 /**
+ * Gemini'nin İngilizce hata gövdesini panelde işe yarar Türkçe mesaja çevirir.
+ * Özellikle kota hatalarında "bekleyip tekrar dene" ile "bu modelde hakkın yok" ayrımı önemlidir.
+ */
+export function explainGeminiError(status, payload, model = config.gemini.model) {
+  const raw = payload?.error?.message || `HTTP ${status}`;
+  const retry = raw.match(/retry in ([\d.]+)s/i)?.[1];
+
+  if (status === 429) {
+    // "limit: 0" => bu model için ücretsiz katmanda hiç hak yok; beklemek çözmez.
+    if (/limit:\s*0\b/.test(raw)) {
+      return (
+        `Bu model ücretsiz katmanda görsel üretimine kapalı (kota sıfır): ${model}. ` +
+        'Beklemek çözmez. Google AI Studio / Google Cloud tarafında projeye faturalandırma ekleyip ücretli katmana geçin ' +
+        'veya anahtarınızın erişebildiği başka bir görsel modeli deneyin. Kota durumu: https://ai.dev/rate-limit'
+      );
+    }
+    return (
+      'Kota doldu (dakikalık/günlük istek sınırı).' +
+      (retry ? ` Yaklaşık ${Math.ceil(Number(retry))} saniye sonra tekrar deneyin.` : ' Bir süre sonra tekrar deneyin.') +
+      ' Kota durumu: https://ai.dev/rate-limit'
+    );
+  }
+
+  if (status === 404 || /not found|is not supported/i.test(raw)) {
+    return (
+      `Model bulunamadı veya bu anahtarla kullanılamıyor: ${model}. ` +
+      'Anahtarınızın eriştiği modelleri listeleyip GEMINI_MODEL değerini ona göre ayarlayın ' +
+      '(README > "Hangi Gemini modeli?").'
+    );
+  }
+
+  if (status === 400 && /api[_ ]key|api key not valid/i.test(raw)) {
+    return 'API anahtarı geçersiz görünüyor. GEMINI_API_KEY değerini kontrol edin.';
+  }
+
+  if (status === 403) {
+    return `Bu anahtarın ${model} modeline erişim izni yok. Anahtarı veya proje ayarlarını kontrol edin.`;
+  }
+
+  return `Gemini isteği başarısız: ${raw}`;
+}
+
+/**
  * @param {object} req
  * @param {{buffer:Buffer, mime:string}} req.image   Ham render (model girdisi)
  * @param {Array<{buffer:Buffer, mime:string}>} req.references
@@ -137,8 +180,7 @@ export async function generate({
   }
 
   if (!response.ok) {
-    const detail = payload?.error?.message || `HTTP ${response.status}`;
-    throw new Error(`Gemini isteği başarısız: ${detail}`);
+    throw new Error(explainGeminiError(response.status, payload));
   }
 
   const candidate = payload?.candidates?.[0];

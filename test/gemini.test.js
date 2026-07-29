@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   SUPPORTED_ASPECTS,
+  explainGeminiError,
   imageSizeForLongEdge,
   nearestSupportedAspect,
   supportsImageSize
@@ -33,6 +34,40 @@ test('yeterince yakın oran yoksa oran gönderilmez (model girdiyi izler)', () =
   // 2.5 (5:2 panoramik) desteklenen listede yok; en yakın 21:9 ≈ 2.33 → %7 sapma
   assert.equal(nearestSupportedAspect(2.5), null);
   assert.equal(nearestSupportedAspect(1.5 * 1.1), null);
+});
+
+test('kota sıfır hatası "beklemek çözmez" olarak açıklanır', () => {
+  const payload = {
+    error: {
+      message:
+        'You exceeded your current quota, please check your plan and billing details. * Quota exceeded for metric: ' +
+        'generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image ' +
+        'Please retry in 12.006316559s.'
+    }
+  };
+  const message = explainGeminiError(429, payload, 'gemini-2.5-flash-image');
+  assert.match(message, /ücretsiz katmanda görsel üretimine kapalı/);
+  assert.match(message, /faturalandırma/);
+  assert.doesNotMatch(message, /saniye sonra tekrar deneyin/);
+});
+
+test('normal kota hatasında bekleme süresi verilir', () => {
+  const payload = { error: { message: 'Resource exhausted. Please retry in 31.5s.' } };
+  const message = explainGeminiError(429, payload);
+  assert.match(message, /Kota doldu/);
+  assert.match(message, /32 saniye sonra tekrar deneyin/);
+});
+
+test('model bulunamadı hatası model listeleme adımına yönlendirir', () => {
+  const payload = { error: { message: 'models/yanlis-model is not found for API version v1beta' } };
+  const message = explainGeminiError(404, payload, 'yanlis-model');
+  assert.match(message, /Model bulunamadı/);
+  assert.match(message, /GEMINI_MODEL/);
+});
+
+test('geçersiz anahtar ve izin hataları ayrı ayrı açıklanır', () => {
+  assert.match(explainGeminiError(400, { error: { message: 'API key not valid. Please pass a valid API key.' } }), /anahtar[ıi] geçersiz/i);
+  assert.match(explainGeminiError(403, { error: { message: 'Permission denied' } }, 'x-model'), /erişim izni yok/);
 });
 
 test('desteklenen oran listesi panelin sunduğu oranları kapsar', () => {
