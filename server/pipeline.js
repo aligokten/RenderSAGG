@@ -158,11 +158,12 @@ async function run(job, options) {
     instruction,
     aspect: aspect === 'source' ? null : aspect,
     aspectValue,
+    outputLongEdge,
     scene,
     apiKey: clientKey
   });
 
-  step(job, 'upscaling', `Çıktı ${outputLongEdge}px uzun kenara yükseltiliyor ve PNG olarak kodlanıyor`);
+  step(job, 'upscaling', `Çıktı ${outputLongEdge}px uzun kenara getiriliyor ve PNG olarak kodlanıyor`);
   const finalImage = await finalize(generated.buffer, {
     longEdge: outputLongEdge,
     targetAspect: aspectValue

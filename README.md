@@ -49,16 +49,34 @@ blob olarak indirir. İşler bellekte tutulduğu için panel **tek instance** ol
 
 | Sağlayıcı | Anahtar | Not |
 | --- | --- | --- |
-| `gemini` | `GEMINI_API_KEY` | `gemini-2.5-flash-image`. Ham render + referanslar tek istekte gider, oran `imageConfig.aspectRatio` ile iletilir. |
+| `gemini` | `GEMINI_API_KEY` | Ham render + referanslar tek istekte gider, oran `imageConfig.aspectRatio` ile iletilir. **gemini-3 nesli görsel modellerde** `imageConfig.imageSize` ile 4K doğrudan üretilir; eski modellerde (`gemini-2.5-flash-image`) çıktı ~1K–2K olur. |
 | `openai` | `OPENAI_API_KEY` | `gpt-image-1` `images/edits`, `input_fidelity: high`. Oran, desteklenen en yakın boyuta eşlenir. |
 | `mock` | — | **Yapay zekâ üretimi değildir.** Yalnızca ton/kontrast/netlik düzeltmesi uygular; anahtarsız kurulumda panelin uçtan uca çalıştığını doğrulamak içindir. |
 
 ## Çözünürlük hakkında dürüstlük notu
 
-Görsel modelleri bugün tipik olarak 1024–2048 piksel uzun kenarda üretim yapar. Panel çıktıyı Lanczos ile
-istenen uzun kenara (varsayılan 3840 px = 4K) yükseltir ve ölçeğe bağlı ölçülü bir keskinleştirme uygular.
-Sonuç ekranında hem **modelin ürettiği gerçek çözünürlük** hem de **nihai dosya boyutu** ayrı ayrı gösterilir:
-yükseltme detay üretmez, ölçek büyütür. Panel hiçbir yerde üretilmemiş bir çözünürlüğü üretilmiş gibi göstermez.
+Panel, hedef uzun kenarı modele de bildirir: `gemini-3` nesli görsel modellerde `imageConfig.imageSize`
+(`1K`/`2K`/`4K`) gönderilir ve 4K **doğrudan** üretilir. Bu modeller kullanılmadığında — ya da model
+istenen boyutu göz ardı ettiğinde — çıktı Lanczos ile hedefe yükseltilir ve ölçüsüne göre hafifçe
+keskinleştirilir.
+
+Sonuç ekranı her iki durumu ayırır: **modelin ürettiği gerçek çözünürlük** ile **nihai dosya boyutu**
+ayrı satırlarda gösterilir, yükseltme yapıldıysa kaç kat olduğu yazılır. Yükseltme detay üretmez,
+ölçek büyütür. Panel hiçbir yerde üretilmemiş bir çözünürlüğü üretilmiş gibi göstermez.
+
+## Terminalden tek seferlik üretim testi
+
+Paneli açmadan, gerçek sağlayıcıyla bir görsel üretip sonucu inceleyebilirsiniz:
+
+```bash
+GEMINI_API_KEY=... RENDER_PROVIDER=gemini \
+  npm run render -- --input render.png --mode presentation --scene exterior \
+                    --time day --prompt "Cephedeki ahşap kaplama termowood olsun."
+```
+
+Komut çıktıyı PNG olarak yazar; kaynak/model/nihai çözünürlükleri, yükseltme oranını ve kalite
+kontrol listesini terminale basar. Anahtar yalnızca ortam değişkeninden okunur. Seçeneklerin tamamı:
+`npm run render -- --help`.
 
 ## En-boy oranı davranışı
 
