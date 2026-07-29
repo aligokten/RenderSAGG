@@ -50,7 +50,7 @@ blob olarak indirir. İşler bellekte tutulduğu için panel **tek instance** ol
 | Sağlayıcı | Anahtar | Not |
 | --- | --- | --- |
 | `gemini` | `GEMINI_API_KEY` | Ham render + referanslar tek istekte gider, oran `imageConfig.aspectRatio` ile iletilir. **gemini-3 nesli görsel modellerde** `imageConfig.imageSize` ile 4K doğrudan üretilir; eski modellerde (`gemini-2.5-flash-image`) çıktı ~1K–2K olur. |
-| `openai` | `OPENAI_API_KEY` | `gpt-image-1` `images/edits`, `input_fidelity: high`. Oran, desteklenen en yakın boyuta eşlenir. |
+| `openai` | `OPENAI_API_KEY` | `images/edits`. **`gpt-image-2`** serbest `WIDTHxHEIGHT` boyut kabul eder ve **3840×2160'a kadar doğrudan** üretir (kenarlar 16'nın katı, oran 1:3–3:1). `gpt-image-1`/`1.5` ise 1024–1536 ile sınırlıdır ve `input_fidelity: high` ile çalışır. Kalite `OPENAI_QUALITY` ile ayarlanır. |
 | `mock` | — | **Yapay zekâ üretimi değildir.** Yalnızca ton/kontrast/netlik düzeltmesi uygular; anahtarsız kurulumda panelin uçtan uca çalıştığını doğrulamak içindir. |
 
 ## Çözünürlük hakkında dürüstlük notu

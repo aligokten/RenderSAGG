@@ -43,12 +43,15 @@ export const config = {
   },
   openai: {
     apiKey: process.env.OPENAI_API_KEY || '',
-    model: process.env.OPENAI_MODEL || 'gpt-image-1',
+    model: process.env.OPENAI_MODEL || 'gpt-image-2',
+    quality: process.env.OPENAI_QUALITY || 'high', // low | medium | high | auto
     baseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
   },
 
   outputLongEdge: num(process.env.OUTPUT_LONG_EDGE, 3840), // 4K
-  inputLongEdge: num(process.env.INPUT_LONG_EDGE, 1536),
+  // Modele gönderilen girdinin uzun kenarı. 4K üretebilen modellerde kaynaktaki mimari
+  // detayın korunması için 2048 kullanılır; düşürmek maliyeti azaltır, sadakati düşürür.
+  inputLongEdge: num(process.env.INPUT_LONG_EDGE, 2048),
   maxUploadBytes: num(process.env.MAX_UPLOAD_MB, 25) * 1024 * 1024,
   maxReferenceImages: 4,
   jobTtlMs: num(process.env.JOB_TTL_MINUTES, 60) * 60 * 1000,
