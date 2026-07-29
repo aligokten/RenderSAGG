@@ -64,6 +64,19 @@ Sonuç ekranı her iki durumu ayırır: **modelin ürettiği gerçek çözünür
 ayrı satırlarda gösterilir, yükseltme yapıldıysa kaç kat olduğu yazılır. Yükseltme detay üretmez,
 ölçek büyütür. Panel hiçbir yerde üretilmemiş bir çözünürlüğü üretilmiş gibi göstermez.
 
+## Hangi Gemini modeli?
+
+Anahtarınızın eriştiği görsel modelleri listeleyin — model kimliğini tahmin etmeyin:
+
+```bash
+curl -s "https://generativelanguage.googleapis.com/v1beta/models" \
+  -H "x-goog-api-key: $GEMINI_API_KEY" | grep -i '"name".*image'
+```
+
+Listede `gemini-3` nesli bir görsel model varsa `GEMINI_MODEL` değerini ona alın: 4K doğrudan
+üretilir. Yoksa `gemini-2.5-flash-image` ile çalışın; çıktı ~1K–2K olur ve panel farkı yükseltmeyle
+kapatıp bunu sonuç künyesinde yazar.
+
 ## Terminalden tek seferlik üretim testi
 
 Paneli açmadan, gerçek sağlayıcıyla bir görsel üretip sonucu inceleyebilirsiniz:
