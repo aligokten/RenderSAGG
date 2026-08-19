@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RenderSAGG — Mimari Render Panelleri</title>
+  <link rel="stylesheet" href="./public/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◲</span>
+      <div>
+        <h1>RenderSAGG</h1>
+        <p>Mimari render panelleri — mimariyi koru, sadece isteneni değiştir</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout" style="grid-template-columns: 1fr; max-width: 900px;">
+    <section class="panel">
+      <div class="block">
+        <h2>Malzeme ve renk alternatifi paketleri</h2>
+        <p class="lead">
+          3D renderınızı yükleyin, değiştirmek istediğiniz yüzeylere tıklayarak numaralı bölgeler
+          işaretleyin, her pakette o numaralara malzeme görseli yükleyip katalogdan malzeme ve renk
+          seçin — “Versiyonu render et” alternatif render sahnesini üretir.
+        </p>
+        <p>
+          <a class="primary small" href="./malzeme-paneli/">Paneli aç</a>
+        </p>
+        <p class="hint">
+          Panel tarayıcıda çalışır: görselleriniz ve API anahtarınız hiçbir sunucuya gönderilmez, istek
+          doğrudan tarayıcınızdan Google Gemini'ye gider. Anahtarınız yoksa <b>Yerel demo</b> sağlayıcısıyla
+          akışın tamamını deneyebilirsiniz (görsel yapay zekâ ile üretilmez, malzeme değişmez).
+        </p>
+      </div>
+
+      <div class="block">
+        <h2>Sunucu sürümü</h2>
+        <p class="lead">
+          Depodaki Node sürümü ek olarak ham render fotogerçekçileştirme ekranını, panel şifresini,
+          saatlik üretim sınırını ve sharp/Lanczos ile daha keskin 4K yükseltmeyi içerir.
+        </p>
+        <ul class="rules">
+          <li><b>Kurulum:</b> <code>npm install &amp;&amp; npm start</code> → <code>http://localhost:3000</code></li>
+          <li><b>Yayınlama:</b> depodaki <code>DEPLOY.md</code> — Docker, Fly.io veya kendi sunucunuz</li>
+        </ul>
+        <p><a class="ghost small" href="https://github.com/aligokten/RenderSAGG">GitHub deposu</a></p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

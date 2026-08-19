@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Malzeme ve Renk Alternatifi Paketleri</title>
+  <link rel="stylesheet" href="../public/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◲</span>
+      <div>
+        <h1>Malzeme ve Renk Alternatifi Paketleri</h1>
+        <p>Render üzerinde bölge işaretle · pakete malzeme yükle · versiyonu render et</p>
+      </div>
+    </div>
+    <div class="provider-badge" id="providerBadge">sağlayıcı seçiliyor…</div>
+  </header>
+
+  <main class="layout layout-wide">
+    <!-- ---------------- SOL: RENDER VE BÖLGELER ---------------- -->
+    <section class="panel controls" aria-label="Referans render ve bölgeler">
+      <div class="block">
+        <h2><span class="step-no">1</span> Referans render</h2>
+        <div class="dropzone" id="renderDrop" tabindex="0" role="button" aria-label="Render görseli yükle">
+          <input type="file" id="renderInput" accept="image/png,image/jpeg,image/webp" hidden />
+          <div class="dz-empty">
+            <strong>3D render görselini sürükleyin</strong>
+            <span>veya tıklayarak seçin — PNG / JPG / WEBP</span>
+          </div>
+        </div>
+        <div id="renderLoaded" hidden>
+          <div class="marker-stage" id="markerStage">
+            <img id="markerImage" alt="Referans render — bölge işaretlemek için tıklayın" />
+            <div class="marker-layer" id="markerLayer"></div>
+          </div>
+          <p class="dz-meta" id="renderMeta"></p>
+          <div class="row-actions">
+            <button type="button" class="ghost small" id="renderChange">Görseli değiştir</button>
+            <button type="button" class="ghost small" id="clearRegions">Bölgeleri temizle</button>
+          </div>
+        </div>
+        <p class="hint" id="unsupportedHint" hidden></p>
+      </div>
+
+      <div class="block">
+        <h2><span class="step-no">2</span> Bölgeler <span class="optional" id="regionCount"></span></h2>
+        <p class="hint">
+          Render üzerinde değiştirmek istediğiniz yüzeye <b>tıklayın</b>: bölge otomatik olarak numaralanır.
+          İşaretçiyi sürükleyerek konumunu düzeltebilirsiniz. Bölgeye ad vermek (ör. “cephe kaplaması”,
+          “tezgâh”) modelin doğru yüzeyi bulmasını belirgin biçimde iyileştirir.
+        </p>
+        <ol class="region-list" id="regionList"></ol>
+        <p class="hint" id="regionEmpty">Henüz bölge işaretlenmedi.</p>
+      </div>
+
+      <div class="block">
+        <h2><span class="step-no">3</span> Sağlayıcı ve API anahtarı</h2>
+        <div class="grid-2">
+          <label>Sağlayıcı
+            <select id="provider"></select>
+          </label>
+          <label>Çıktı çözünürlüğü
+            <select id="outputLongEdge">
+              <option value="3840" selected>4K — uzun kenar 3840 px</option>
+              <option value="2560">2.5K — 2560 px</option>
+              <option value="1920">Full HD — 1920 px</option>
+            </select>
+          </label>
+        </div>
+        <div id="apiKeyRow">
+          <label>API anahtarı
+            <input type="password" id="apiKey" placeholder="Anahtarı yapıştırın" autocomplete="off" />
+          </label>
+          <p class="hint" id="apiKeyHint"></p>
+          <label class="inline"><input type="checkbox" id="rememberKey" /> Bu tarayıcıda hatırla</label>
+        </div>
+        <div class="note">
+          Bu sayfa <b>sunucusuz</b> çalışır: görselleriniz ve API anahtarınız hiçbir sunucuya gönderilmez,
+          istek doğrudan tarayıcınızdan sağlayıcıya gider. Anahtar yalnızca sizin tarayıcınızdadır —
+          paylaşılan bir bilgisayarda “hatırla” seçeneğini işaretlemeyin. Anahtarınız yoksa
+          <b>Yerel demo</b> ile akışın tamamını deneyebilirsiniz (malzeme değişmez).
+        </div>
+      </div>
+
+      <details class="block collapsible">
+        <summary><h2><span class="step-no">4</span> Sahne ayarları</h2></summary>
+        <div class="grid-2">
+          <label>Sahne türü
+            <select id="scene">
+              <option value="auto">Otomatik belirle</option>
+              <option value="exterior">Dış mekân</option>
+              <option value="interior">İç mekân</option>
+            </select>
+          </label>
+          <label>Zaman
+            <select id="time">
+              <option value="auto">Kaynağı koru</option>
+              <option value="day">Gündüz (yumuşak doğal)</option>
+              <option value="overcast">Kapalı hava</option>
+              <option value="goldenHour">Altın saat</option>
+              <option value="dusk">Alacakaranlık</option>
+              <option value="night">Gece</option>
+            </select>
+          </label>
+          <label>Hava
+            <select id="weather">
+              <option value="auto">Kaynağı koru</option>
+              <option value="clear">Açık</option>
+              <option value="cloudy">Parçalı bulutlu</option>
+              <option value="rain">Yağmur sonrası</option>
+              <option value="snow">Kar</option>
+            </select>
+          </label>
+          <label>En-boy oranı
+            <select id="aspect">
+              <option value="source">Kaynak oranı (önerilen)</option>
+              <option value="16:9">16:9</option>
+              <option value="3:2">3:2</option>
+              <option value="4:3">4:3</option>
+              <option value="1:1">1:1</option>
+              <option value="9:16">9:16</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">Alternatifler yan yana sunulacağı için tüm paketlerde aynı sahne ayarlarını kullanmak önerilir.</p>
+      </details>
+
+      <details class="block collapsible">
+        <summary><h2><span class="step-no">5</span> Tüm paketler için ek istek</h2></summary>
+        <textarea id="prompt" rows="4" placeholder="Örn: Derz genişliği 8 mm olsun, malzeme geçişleri köşede bitsin. Bunun dışında hiçbir şeyi değiştirme."></textarea>
+        <p class="hint">Bu metin her paketin talimatına eklenir.</p>
+      </details>
+    </section>
+
+    <!-- ---------------- SAĞ: PAKETLER ---------------- -->
+    <section class="panel output packages" aria-label="Alternatif paketleri">
+      <div class="result-head">
+        <h2>Alternatif paketleri</h2>
+        <div class="row-actions">
+          <button type="button" class="ghost small" id="renderAll">Tüm paketleri render et</button>
+          <button type="button" class="primary small" id="addPackage">+ Paket ekle</button>
+        </div>
+      </div>
+
+      <p class="lead" id="packagesIntro">
+        Her paket, işaretlediğiniz bölge numaralarına birer malzeme ataması içerir: kartela/doku görseli
+        yükleyebilir, katalogdan malzeme seçebilir ve renk belirleyebilirsiniz. <b>“Versiyonu render et”</b>
+        butonu o paketin alternatif render sahnesini üretir; geometri, kamera ve ışık birebir korunur.
+      </p>
+
+      <div id="packageList"></div>
+
+      <div class="compare-strip" id="compareStrip" hidden>
+        <h3>Karşılaştırma</h3>
+        <div class="strip" id="strip"></div>
+        <p class="hint">Küçük görsele tıklayarak büyütün; büyük görünümde sürgü ile referans render ile karşılaştırın.</p>
+      </div>
+
+      <div class="qc" id="qcBlock" hidden>
+        <h3>Kalite kontrolü</h3>
+        <ul id="checklist"></ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- ---------------- BÜYÜK GÖRÜNÜM ---------------- -->
+  <div class="lightbox" id="lightbox" hidden>
+    <div class="lightbox-head">
+      <div>
+        <b id="lbTitle"></b>
+        <span id="lbMeta" class="hint"></span>
+      </div>
+      <div class="row-actions">
+        <a class="primary small" id="lbDownload" download>PNG indir</a>
+        <button type="button" class="ghost small" id="lbClose">Kapat</button>
+      </div>
+    </div>
+    <div class="compare" id="lbCompare">
+      <img id="lbAfter" alt="Alternatif render" />
+      <div class="compare-before" id="lbBeforeWrap"><img id="lbBefore" alt="Referans render" /></div>
+      <div class="compare-handle" id="lbHandle"><span></span></div>
+      <div class="compare-label left">REFERANS</div>
+      <div class="compare-label right">ALTERNATİF</div>
+    </div>
+    <input type="range" id="lbRange" min="0" max="100" value="50" aria-label="Karşılaştırma sürgüsü" />
+    <details class="prompt-dump">
+      <summary>Modele gönderilen talimat</summary>
+      <pre id="lbInstruction"></pre>
+    </details>
+  </div>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>
