@@ -150,7 +150,16 @@ blob olarak indirir. İşler bellekte tutulduğu için panel **tek instance** ol
 | --- | --- | --- |
 | `gemini` | `GEMINI_API_KEY` | `gemini-2.5-flash-image`. Ham render + referanslar tek istekte gider, oran `imageConfig.aspectRatio` ile iletilir. |
 | `openai` | `OPENAI_API_KEY` | `gpt-image-1` `images/edits`, `input_fidelity: high`. Oran, desteklenen en yakın boyuta eşlenir. |
+| `kling` | `KLING_API_KEY` | Kling AI, `klingai.com` "global" geliştirici panelinden alınan tekli anahtarla (Bearer token) çalışır — bkz. aşağıdaki uyarı. |
 | `mock` | — | **Yapay zekâ üretimi değildir.** Yalnızca ton/kontrast/netlik düzeltmesi uygular; anahtarsız kurulumda panelin uçtan uca çalıştığını doğrulamak içindir. |
+
+### Kling AI hakkında önemli uyarı
+
+- **Ücretsiz değildir.** Satın alınmış kaynak birimlerini (resource units) harcar; "ücretsiz sağlayıcı" arayanlar için Gemini'nin kredi kartsız ücretsiz katmanı daha uygun bir başlangıçtır.
+- **Geometri koruma garantisi Gemini/OpenAI kadar sıkı değildir.** Kling'in görsel referans modu (`image_reference: subject`) stil/konu tutarlılığı için tasarlanmıştır — panelin CORE_RULES'ında istenen piksel-sadık, "yalnızca malzemeyi değiştir, geri kalanı birebir koru" davranışı garanti edilmez. Kling ile üretilen her sonucu kalite kontrol listesine göre mutlaka denetleyin.
+- **Yalnızca sunucu sürümünde var**, GitHub Pages (sunucusuz) sürüme eklenmedi: Kling'in kendi dokümantasyonu anahtarın tarayıcıda kullanılmamasını öneriyor, ayrıca sonuç görselini indirmek için gereken CDN isteğinin tarayıcıdan CORS ile engellenip engellenmeyeceği doğrulanamadı — başarısız bir istek yine de satın alınmış krediyi harcayabilir.
+- **Talimat 2500 karakterle sınırlıdır.** Panelin ürettiği tam talimat bunu aşarsa `server/providers/kling.js` içindeki `compactInstruction` devreye girer: sabit bir "mimariyi koru" çekirdek kuralı + talimatın SONU (kullanıcının asıl isteği, bölge/malzeme atamaları) korunur, geri kalanı atılır.
+- Bu entegrasyon halka açık dokümantasyon ve resmi SDK kaynak kodundan derlendi; geliştirme ortamından `klingai.com`'a erişim engellendiği için **uçtan uca gerçek bir istekle doğrulanamadı**. İlk denemede beklenmedik bir hata alırsanız (özellikle alan adı/`image` biçimiyle ilgili), `server/providers/kling.js`'i Kling'in size döndürdüğü gerçek hata mesajına göre güncellemem gerekebilir.
 
 ## Çözünürlük hakkında dürüstlük notu
 

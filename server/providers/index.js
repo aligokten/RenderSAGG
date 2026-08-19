@@ -1,11 +1,13 @@
 import { config } from '../config.js';
 import * as gemini from './gemini.js';
 import * as openai from './openai.js';
+import * as kling from './kling.js';
 import * as mock from './mock.js';
 
 const REGISTRY = new Map([
   [gemini.id, gemini],
   [openai.id, openai],
+  [kling.id, kling],
   [mock.id, mock]
 ]);
 
