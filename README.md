@@ -7,6 +7,10 @@ Ham iç/dış mekân renderlarını **mimari projeye sadık kalarak** işleyen w
 | **Fotogerçekçileştirme** | `/` | Ham renderı fotogerçekçi mimari fotoğrafa dönüştürür |
 | **Malzeme ve renk alternatifi paketleri** | `/paketler.html` | Aynı sahnenin farklı malzeme/renk/doku alternatiflerini üretir |
 
+Malzeme paneli ayrıca **sunucusuz** olarak GitHub Pages üzerinde yayındadır:
+**https://aligokten.github.io/RenderSAGG/malzeme-paneli/** — kurulum gerektirmez, kendi API
+anahtarınızla çalışır. Ayrıntı: [Sunucusuz sürüm](#sunucusuz-s%C3%BCr%C3%BCm-github-pages).
+
 Her iki ekranda da temel ilke aynıdır: **MİMARİYİ KORU, SADECE İSTENENİ DEĞİŞTİR.**
 
 ---
@@ -75,6 +79,37 @@ doğal taş, beton ve sıva, seramik ve tuğla, metal, cam ve panel, boya, tekst
 Katalogda olmayan bir malzeme için “Kendim yazacağım…” seçilir; serbest metin de aynı kural setiyle
 işlenir. Doğal malzemelerde (ahşap, doğal taş, tuğla, korten) renk **düz boya gibi değil**, malzemenin
 doğal ton aralığında yorumlanır — bu ayrım katalogda `colorMode` alanıyla tutulur.
+
+---
+
+# Sunucusuz sürüm (GitHub Pages)
+
+Malzeme paneli, sunucu kurmadan doğrudan tarayıcıda çalışan bir sürüm olarak da yayınlanır:
+
+**https://aligokten.github.io/RenderSAGG/malzeme-paneli/**
+
+Nasıl çalışır: kural seti ve malzeme kataloğu sunucu sürümüyle **aynı dosyalardan** okunur
+(`server/prompt.js` ve `server/materials.js` saf JavaScript'tir ve tarayıcıda da çalışır), görsel
+işleme canvas ile yapılır, üretim isteği **doğrudan tarayıcıdan** Google Gemini'ye gider.
+
+| | Sunucu sürümü | Sunucusuz sürüm (Pages) |
+| --- | --- | --- |
+| Kurulum | Node servisi gerekir | Yok — adresi açmak yeterli |
+| API anahtarı | Sunucuda tutulur, kullanıcıya gösterilmez | Kullanıcının kendi tarayıcısında; hiçbir sunucuya gitmez |
+| Görseller | Sunucuya yüklenir | Tarayıcıdan çıkmaz |
+| Yükseltme | sharp · Lanczos (daha keskin) | canvas · adımlı bilineer |
+| Panel şifresi, saatlik sınır | Var | Yok — herkes kendi anahtarıyla kullanır |
+| Fotogerçekçileştirme ekranı | Var | Yok (yalnızca malzeme paneli) |
+| Sağlayıcı | gemini · openai · mock | gemini (doğrulandı) · openai (tarayıcı CORS'una bağlı) · yerel demo |
+
+Anahtarı olmayan biri **Yerel demo** sağlayıcısıyla akışın tamamını (bölge işaretleme, kartela
+yükleme, "Versiyonu render et", karşılaştırma, PNG indirme) deneyebilir; bu modda görsel yapay zekâ
+ile üretilmez ve malzeme değişmez.
+
+Pages yapılandırması: **Settings → Pages → Source: `main` / `(root)`**. Depo kökü sunulduğu için
+statik panel `server/` ve `public/` altındaki ortak dosyaları doğrudan içe aktarır — kural seti
+kopyalanmaz. `test/browser-safe.test.js` bu iki modülün tarayıcı-uyumlu kalmasını denetler: birine
+Node bağımlılığı eklenirse test kırılır.
 
 ---
 
@@ -180,6 +215,14 @@ server/
   image.js        sharp işlemleri: girdi hazırlama, 4K yükseltme, önizleme
   pipeline.js     doğrulama, iş kuyruğu, uçtan uca akış
   providers/      gemini · openai · mock
+index.html        GitHub Pages giriş sayfası
+.nojekyll         Pages'in dosyaları olduğu gibi sunması için
+malzeme-paneli/   sunucusuz (Pages) sürüm
+  index.html      panel arayüzü
+  app.js          panel mantığı
+  lib/image.js    canvas ile hazırlama, yükseltme, önizleme
+  lib/provider.js tarayıcıdan gemini · openai · yerel demo
+  lib/pipeline.js paket üretim akışı (ortak kural setini içe aktarır)
 public/
   index.html      fotogerçekçileştirme ekranı
   paketler.html   malzeme ve renk alternatifi paketleri ekranı
