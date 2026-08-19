@@ -258,3 +258,170 @@ export const QC_CHECKLIST = [
   'İstenmeyen yeni bir mimari eleman oluşmuş mu?',
   'Yapay zekâ deformasyonu bulunuyor mu?'
 ];
+
+/* ==================================================================================
+ * MALZEME & RENK ALTERNATİFİ PAKETLERİ
+ *
+ * Panelde kullanıcı, referans render üzerine tıklayarak numaralı bölgeler tanımlar.
+ * Her paket, bu numaralara malzeme/renk/doku referansı atar ve tek bir alternatif
+ * render üretir. Kural: SADECE NUMARALANMIŞ BÖLGELERİN MALZEMESİ DEĞİŞİR.
+ * ================================================================================== */
+
+export const PACKAGE_RULES = `ÇALIŞMA MODU: MALZEME VE RENK ALTERNATİFİ PAKETİ.
+Bu bir malzeme alternatifi sunumudur. Geometri, kamera, perspektif, kadraj, açıklıklar, mobilya
+yerleşimi, peyzaj düzeni ve aydınlatma kurgusu BİREBİR KORUNUR. Yalnızca aşağıda numaralanmış
+bölgelerin malzemesi, dokusu ve rengi değiştirilir.
+
+Sahnenin geri kalanı, bir öncekiyle yan yana konabilecek kadar aynı kalmalıdır: güneş yönü, gölge
+uzunlukları, gökyüzü, pozlama, beyaz dengesi, peyzaj ve tüm diğer yüzeyler değişmez. Bu görsel bir
+karşılaştırma setinin parçasıdır; tek fark numaralanmış bölgelerdeki malzeme olmalıdır.`;
+
+export const REGION_RULES = `BÖLGE SINIRI KURALLARI:
+- Her bölge, verilen noktanın üzerinde bulunan yüzeyin TAMAMINI kapsar: aynı malzemeye ait sürekli
+  yüzeyin doğal sınırlarına (derz, köşe, profil, kenar) kadar uygulanır.
+- Değişim bu sınırların dışına TAŞMAZ. Komşu yüzeyler, doğrama, cam, korkuluk ve zemin etkilenmez.
+- Aynı yapıda o yüzeyle aynı malzemeyi paylaşan diğer yüzeyler de tutarlı biçimde güncellenir;
+  farklı malzemeye ait yüzeyler korunur.
+- Numaralanmış bölge sayısı kadar değişiklik yapılır; listelenmeyen hiçbir yüzeye dokunulmaz.
+- Yeni malzeme gerçek dünya ölçeğinde, doğru derz/ek düzeni ve doğru yansıma-pürüzlülük
+  değerleriyle uygulanır; malzemenin ışığa tepkisi sahnedeki mevcut ışıkla tutarlı olur.
+- Malzeme değişiminin yüzeye düşen gölge ve yansımalar üzerindeki etkisi fiziksel olarak doğru
+  yansıtılır; ancak ışık kaynakları ve gölge yönü değişmez.
+
+GÖRSELE İŞARET KOYULMAZ: Bölge numaraları, işaretçiler, oklar, çerçeveler, ölçü çizgileri veya
+etiketler çıktı görselinde GÖRÜNMEZ. Numaralar yalnızca bu talimatta hangi yüzeyin kastedildiğini
+tanımlamak içindir. Çıktı temiz bir mimari fotoğraftır.`;
+
+export const SWATCH_RULES = `MALZEME REFERANS GÖRSELLERİ: Yüklenen malzeme görselleri (doku fotoğrafı, malzeme
+kartelası, ürün fotoğrafı) yalnızca ilgili bölgenin DOKU, DESEN, RENK ve YÜZEY KARAKTERİ kaynağıdır.
+Referans görselin kendi geometrisi, perspektifi, aydınlatması, arka planı, çerçevesi veya üzerindeki
+yazı ve logolar sahneye TAŞINMAZ. Doku, hedef yüzeyin perspektifine ve gerçek dünya ölçeğine uygun
+biçimde yeniden yerleştirilir; kartela görüntüsü olduğu gibi yüzeye yapıştırılmaz.`;
+
+const positionText = (x, y) => {
+  const px = Math.round(Math.max(0, Math.min(1, Number(x) || 0)) * 100);
+  const py = Math.round(Math.max(0, Math.min(1, Number(y) || 0)) * 100);
+  const horizontal = px < 34 ? 'sol' : px > 66 ? 'sağ' : 'orta';
+  const vertical = py < 34 ? 'üst' : py > 66 ? 'alt' : 'orta';
+  return `görselin sol kenarından %${px}, üst kenarından %${py} uzaklıktaki nokta (${vertical}-${horizontal} bölge)`;
+};
+
+/**
+ * Tek bir malzeme paketi için modele gönderilecek talimatı üretir.
+ *
+ * @param {object} opts
+ * @param {Array<object>} opts.regions   [{ number, label, x, y, material, color, note, swatchRef }]
+ * @param {string} [opts.packageName]
+ * @param {string} [opts.scene]          auto | exterior | interior
+ * @param {string} [opts.time]
+ * @param {string} [opts.weather]
+ * @param {string} [opts.aspect]
+ * @param {string} [opts.userPrompt]
+ * @param {number} [opts.swatchCount]    Malzeme referans görseli sayısı
+ * @param {{width:number,height:number}} [opts.source]
+ * @returns {{instruction:string, negative:string[]}}
+ */
+export function buildPackagePrompt(opts) {
+  const {
+    regions = [],
+    packageName = '',
+    scene = 'auto',
+    time = 'auto',
+    weather = 'auto',
+    aspect = 'source',
+    userPrompt = '',
+    swatchCount = 0,
+    source = null
+  } = opts || {};
+
+  const blocks = [CORE_RULES, PACKAGE_RULES, SCENE_RULES[scene] || SCENE_RULES.auto];
+
+  const timeRule = time === 'auto' ? TIME_RULES.auto : TIME_RULES[time];
+  if (timeRule) blocks.push(timeRule);
+  const weatherRule = WEATHER_RULES[weather];
+  if (weatherRule) blocks.push(weatherRule);
+
+  const header = packageName
+    ? `NUMARALANMIŞ BÖLGELER VE UYGULANACAK MALZEMELER — "${packageName}" paketi (${regions.length} bölge):`
+    : `NUMARALANMIŞ BÖLGELER VE UYGULANACAK MALZEMELER (${regions.length} bölge):`;
+
+  const regionBlocks = regions.map((region) => {
+    const lines = [];
+    const title = region.label ? `BÖLGE ${region.number} — ${region.label}` : `BÖLGE ${region.number}`;
+    lines.push(title);
+    lines.push(`Konum: ${positionText(region.x, region.y)}. Bu noktanın üzerindeki yüzeyin tamamı bu bölgeye aittir.`);
+
+    if (region.surfaceRule) lines.push(region.surfaceRule);
+
+    if (region.material) {
+      lines.push(`Uygulanacak malzeme: ${region.material.label}.`);
+      if (region.material.spec) lines.push(`Malzeme karakteri: ${region.material.spec}`);
+    }
+
+    if (region.color) {
+      const hex = region.color.hex ? ` (${region.color.hex})` : '';
+      const exact = !region.material || region.material.colorMode !== 'tone';
+      lines.push(
+        exact
+          ? `Renk: ${region.color.name}${hex} — bu renk birebir uygulanır; yüzeyin ışık altındaki ton geçişleri korunur.`
+          : `Renk: ${region.color.name}${hex} — malzemenin doğal ton aralığında yorumlanır; malzemenin kendi damar/doku karakteri korunur, düz boya gibi görünmez.`
+      );
+    }
+
+    if (region.swatchRef) {
+      lines.push(
+        `Malzeme referans görseli: ${region.swatchRef}. Bu bölgenin doku, desen ve renk kaynağı yalnızca bu görseldir.`
+      );
+    }
+
+    if (!region.material && !region.color && !region.swatchRef) {
+      lines.push('Bu bölge için malzeme belirtilmemiştir: bölge BİREBİR KORUNUR, hiçbir değişiklik yapılmaz.');
+    }
+
+    if (region.note) lines.push(`Ek not: ${region.note}`);
+
+    return lines.join('\n');
+  });
+
+  blocks.push([header, ...regionBlocks].join('\n\n'));
+  blocks.push(REGION_RULES);
+
+  if (swatchCount > 0) blocks.push(SWATCH_RULES);
+
+  if (aspect === 'source') {
+    const dims = source ? ` (${source.width}x${source.height})` : '';
+    blocks.push(`ÇIKTI ORANI: Kaynak görselin en-boy oranı${dims} birebir korunur. Kadraj kırpılmaz — alternatifler
+yan yana karşılaştırılacağı için kadrajın birebir aynı kalması zorunludur.`);
+  } else {
+    blocks.push(`ÇIKTI ORANI: ${ASPECT_LABELS[aspect] || aspect}. Kadraj kırpılarak değil, sahne kenarlardan
+genişletilerek bu orana ulaşılır; kamera konumu değişmez.`);
+  }
+
+  const trimmedUser = String(userPrompt || '').trim();
+  if (trimmedUser) {
+    blocks.push(`KULLANICININ EK TALEBİ (yalnızca burada yazılanı uygula, belirtilmeyen her alanı birebir koru):
+${trimmedUser}`);
+  }
+
+  blocks.push(`ÜRETİLMEYECEKLER: ${NEGATIVE_PROMPT.join(', ')}, bölge numarası veya işaretçi çizmek, malzeme kartelasını olduğu gibi yüzeye yapıştırmak, belirtilmeyen yüzeylerin malzemesini değiştirmek.`);
+
+  blocks.push(`ÇIKTI: Tek bir fotogerçekçi mimari fotoğraf üret. Kaynakla AYNI mimari projeyi, AYNI kamera
+açısından, AYNI ışıkla göster; yalnızca numaralanmış bölgelerin malzemesi ve rengi farklı olsun.
+Görselde yazı, numara, işaretçi, logo, filigran veya çerçeve bulunmaz.`);
+
+  return { instruction: blocks.join('\n\n'), negative: NEGATIVE_PROMPT };
+}
+
+/** Alternatif paketleri için sonuç ekranındaki kalite kontrol listesi. */
+export const PACKAGE_QC_CHECKLIST = [
+  'Geometri, kamera açısı ve kadraj kaynakla birebir aynı mı?',
+  'Işık yönü, gölgeler ve gökyüzü diğer alternatiflerle aynı mı?',
+  'Yalnızca numaralanmış bölgeler değişmiş mi?',
+  'Değişim yüzey sınırlarının dışına taşmış mı?',
+  'Yeni malzemenin doku ölçeği ve derz düzeni gerçekçi mi?',
+  'Malzemenin yansıma ve pürüzlülük karakteri doğru mu?',
+  'Renk, yüklenen kartela/referans ile tutarlı mı?',
+  'Dokularda belirgin tekrar (tiling) var mı?',
+  'Görselde bölge numarası, işaretçi veya yazı kalmış mı?',
+  'Alternatifler yan yana konduğunda yalnızca malzeme farkı okunuyor mu?'
+];

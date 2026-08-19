@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { decodeUpload, getJob, startJob } from '../server/pipeline.js';
+import { decodeRegions, decodeUpload, getJob, startJob, startPackageJob } from '../server/pipeline.js';
 
 const samplePng = async () =>
   (await sharp({ create: { width: 640, height: 360, channels: 3, background: '#b8cfe0' } }).png().toBuffer()).toString('base64');
@@ -82,4 +82,92 @@ test('yapılandırılmamış sağlayıcı işi anlaşılır hata ile biter', asy
   }
   assert.equal(getJob(job.id).status, 'error');
   assert.match(getJob(job.id).error, /yapılandırılmamış/);
+});
+
+test('malzeme paketi uçtan uca çalışır: bölgeler, malzeme görseli ve künye', async () => {
+  const data = await samplePng();
+  const render = decodeUpload({ name: 'villa.png', type: 'image/png', data });
+  const regions = decodeRegions([
+    {
+      number: 1,
+      label: 'Cephe kaplaması',
+      x: 0.3,
+      y: 0.65,
+      surface: { id: 'facade' },
+      material: 'thermowood',
+      color: 'anthracite',
+      note: '8 mm gölge derzi',
+      swatch: { name: 'kartela.png', type: 'image/png', data }
+    },
+    { number: 2, label: 'Dış zemin', x: 0.6, y: 0.9, material: { label: 'Kesme bazalt plaka' } }
+  ]);
+
+  const job = startPackageJob({
+    render,
+    regions,
+    packageName: 'Paket A',
+    scene: 'exterior',
+    aspect: 'source',
+    providerName: 'mock',
+    outputLongEdge: 1920
+  });
+
+  const deadline = Date.now() + 60000;
+  while (!['done', 'error'].includes(getJob(job.id).status) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  const finished = getJob(job.id);
+  assert.equal(finished.status, 'done', finished.error || '');
+  assert.equal(finished.result.kind, 'package');
+  assert.equal(finished.result.packageName, 'Paket A');
+  assert.equal(finished.result.width, 1920);
+  assert.match(finished.downloadName, /^villa_Paket-A_1920x1080_\d{4}-\d{2}-\d{2}\.png$/);
+
+  // Künye: hangi bölgeye ne uygulandığı panelde okunabilmeli
+  assert.equal(finished.result.legend.length, 2);
+  assert.equal(finished.result.legend[0].material, 'Termowood (ısıl işlemli çam)');
+  assert.equal(finished.result.legend[0].color.hex, '#3A3E42');
+  assert.equal(finished.result.legend[0].swatch, true);
+  assert.equal(finished.result.legend[1].material, 'Kesme bazalt plaka');
+  assert.equal(finished.result.legend[1].swatch, false);
+
+  // Talimat bölgeleri numarayla anlatmalı ve malzeme görselini ilgili bölgeye bağlamalı
+  assert.match(finished.result.instruction, /BÖLGE 1 — Cephe kaplaması/);
+  assert.match(finished.result.instruction, /Referans görsel 2/);
+});
+
+test('boş paket ve bölgesiz istek anlaşılır hata verir', async () => {
+  const data = await samplePng();
+
+  assert.throws(() => decodeRegions([]), (err) => {
+    assert.equal(err.code, 'NO_REGION');
+    return true;
+  });
+
+  assert.throws(
+    () => decodeRegions([{ number: 1, x: 0.5, y: 0.5, label: 'Cephe' }]),
+    (err) => {
+      assert.equal(err.code, 'EMPTY_PACKAGE');
+      return true;
+    }
+  );
+
+  assert.throws(() => decodeRegions([{ number: 1, x: 'abc', y: 0.5, material: 'oak' }]), /konum okunamadı/);
+
+  // Bölge sınırı aşılamaz
+  const many = Array.from({ length: 20 }, (_, index) => ({ number: index + 1, x: 0.5, y: 0.5, material: 'oak' }));
+  assert.throws(() => decodeRegions(many), (err) => {
+    assert.equal(err.code, 'TOO_MANY_REGIONS');
+    return true;
+  });
+
+  // CAD malzeme görseli de reddedilir
+  assert.throws(
+    () => decodeRegions([{ number: 1, x: 0.5, y: 0.5, swatch: { name: 'malzeme.skp', type: 'image/png', data } }]),
+    (err) => {
+      assert.equal(err.code, 'UNSUPPORTED_FORMAT');
+      return true;
+    }
+  );
 });
