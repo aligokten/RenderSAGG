@@ -104,6 +104,107 @@ test('şifre ile uçtan uca üretim çalışır ve PNG indirilebilir', async () 
   assert.equal((await fetch(`${base()}${job.result.downloadUrl}`)).status, 401);
 });
 
+test('malzeme paketi ucu bölgeleri işler ve alternatif PNG üretir', async () => {
+  const headers = { 'content-type': 'application/json', 'x-panel-password': 'gizli-sifre' };
+  const cfg = await (await fetch(`${base()}/api/config`, { headers })).json();
+  assert.ok(cfg.materials.length > 20, 'katalog panele gitmeli');
+  assert.ok(cfg.colors.length > 10);
+  assert.ok(cfg.maxRegions >= 1);
+  assert.ok(cfg.packageChecklist.length > 5);
+
+  const sample = await samplePayload();
+  const started = await fetch(`${base()}/api/packages`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      ...sample,
+      packageName: 'Paket B',
+      outputLongEdge: 1920,
+      regions: [
+        {
+          number: 1,
+          label: 'Cephe kaplaması',
+          x: 0.4,
+          y: 0.6,
+          material: 'klinkerBrick',
+          color: 'terracotta',
+          swatch: { name: 'kartela.png', type: 'image/png', data: sample.render.data }
+        }
+      ]
+    })
+  });
+  assert.equal(started.status, 202);
+  const { id } = await started.json();
+
+  let job;
+  const deadline = Date.now() + 30000;
+  do {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    job = await (await fetch(`${base()}/api/jobs/${id}`, { headers })).json();
+  } while (job.status !== 'done' && job.status !== 'error' && Date.now() < deadline);
+
+  assert.equal(job.status, 'done', job.error || '');
+  assert.equal(job.result.packageName, 'Paket B');
+  assert.equal(job.result.legend[0].number, 1);
+  assert.equal(job.result.legend[0].swatch, true);
+
+  const download = await fetch(`${base()}${job.result.downloadUrl}`, { headers });
+  assert.equal(download.status, 200);
+  const meta = await sharp(Buffer.from(await download.arrayBuffer())).metadata();
+  assert.equal(meta.width, 1920);
+});
+
+test('Türkçe karakterli paket adı indirme başlığını bozmaz', async () => {
+  const headers = { 'content-type': 'application/json', 'x-panel-password': 'gizli-sifre' };
+  const started = await fetch(`${base()}/api/packages`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      ...(await samplePayload()),
+      packageName: 'Paket A — Ahşap',
+      outputLongEdge: 1920,
+      regions: [{ number: 1, label: 'Cephe', x: 0.4, y: 0.6, material: 'thermowood' }]
+    })
+  });
+  assert.equal(started.status, 202);
+  const { id } = await started.json();
+
+  let job;
+  const deadline = Date.now() + 30000;
+  do {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    job = await (await fetch(`${base()}/api/jobs/${id}`, { headers })).json();
+  } while (job.status !== 'done' && job.status !== 'error' && Date.now() < deadline);
+  assert.equal(job.status, 'done', job.error || '');
+
+  const download = await fetch(`${base()}${job.result.downloadUrl}`, { headers });
+  assert.equal(download.status, 200, 'Türkçe karakterli ad 500 vermemeli');
+  const disposition = download.headers.get('content-disposition');
+  assert.match(disposition, /filename="[\x20-\x7e]+"/, 'ASCII yedek ad bulunmalı');
+  assert.match(disposition, /filename\*=UTF-8''/, 'tam ad RFC 5987 ile gönderilmeli');
+  assert.ok(decodeURIComponent(disposition.split("filename*=UTF-8''")[1]).includes('Ahşap'));
+});
+
+test('bölgesiz paket isteği 400 ve açıklayıcı kod döner', async () => {
+  const headers = { 'content-type': 'application/json', 'x-panel-password': 'gizli-sifre' };
+  const res = await fetch(`${base()}/api/packages`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ ...(await samplePayload()), regions: [] })
+  });
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).code, 'NO_REGION');
+});
+
+test('şifresiz paket isteği reddedilir', async () => {
+  const res = await fetch(`${base()}/api/packages`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(await samplePayload())
+  });
+  assert.equal(res.status, 401);
+});
+
 test('saatlik sınır aşılınca 429 döner', async () => {
   const headers = { 'content-type': 'application/json', 'x-panel-password': 'gizli-sifre' };
   const body = JSON.stringify(await samplePayload());

@@ -51,6 +51,9 @@ export const config = {
   inputLongEdge: num(process.env.INPUT_LONG_EDGE, 1536),
   maxUploadBytes: num(process.env.MAX_UPLOAD_MB, 25) * 1024 * 1024,
   maxReferenceImages: 4,
+  // Malzeme paketlerinde render üzerine işaretlenebilecek bölge sayısı ve bölge başına
+  // yüklenebilecek malzeme görseli sayısı (her bölge için en fazla bir görsel).
+  maxRegions: num(process.env.MAX_REGIONS, 8),
   jobTtlMs: num(process.env.JOB_TTL_MINUTES, 60) * 60 * 1000,
   requestTimeoutMs: num(process.env.REQUEST_TIMEOUT_SECONDS, 240) * 1000
 };

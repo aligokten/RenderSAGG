@@ -43,7 +43,12 @@ export async function generate({ image, references = [], instruction, aspectValu
   form.append('image[]', new Blob([image.buffer], { type: image.mime }), 'render.png');
 
   references.forEach((ref, index) => {
-    form.append('image[]', new Blob([ref.buffer], { type: ref.mime }), `reference-${index + 1}.png`);
+    // Dosya adı modele hangi referansın hangi bölgeye ait olduğunu bildiren tek kanaldır.
+    const slug = String(ref.name || `reference-${index + 1}`)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || `reference-${index + 1}`;
+    form.append('image[]', new Blob([ref.buffer], { type: ref.mime }), `${slug}.png`);
   });
 
   const response = await fetch(`${config.openai.baseUrl}/images/edits`, {

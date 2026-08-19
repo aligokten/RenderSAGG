@@ -410,3 +410,224 @@ label.inline input { accent-color: var(--accent); }
 }
 
 .result-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+/* ================================================================
+   MALZEME VE RENK ALTERNATİFİ PAKETLERİ
+   ================================================================ */
+
+/* ---------- Üst gezinme ---------- */
+.nav { display: flex; gap: 6px; margin-left: auto; margin-right: 12px; }
+.nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 12.5px;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.nav a:hover { color: var(--text); border-color: #3a414c; }
+.nav a.active { color: var(--accent); border-color: rgba(214, 161, 90, 0.45); background: var(--accent-soft); }
+
+.layout-wide { grid-template-columns: minmax(360px, 480px) 1fr; }
+
+/* ---------- Katlanabilir bölüm ---------- */
+.collapsible summary { cursor: pointer; list-style: none; }
+.collapsible summary::-webkit-details-marker { display: none; }
+.collapsible summary h2 { margin-bottom: 0; }
+.collapsible summary h2::after { content: "▾"; color: var(--muted); margin-left: auto; font-size: 12px; }
+.collapsible[open] summary h2::after { content: "▴"; }
+.collapsible[open] summary { margin-bottom: 12px; }
+
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* ---------- Bölge işaretleme ---------- */
+.marker-stage {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: crosshair;
+  background: #0b0d10;
+}
+.marker-stage img { display: block; width: 100%; }
+.marker-layer { position: absolute; inset: 0; }
+.pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--accent);
+  color: #1a1204;
+  font: 600 12px/1 "Inter", system-ui, sans-serif;
+  display: grid; place-items: center;
+  cursor: grab;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .45), 0 2px 8px rgba(0, 0, 0, .5);
+  touch-action: none;
+}
+.pin:active { cursor: grabbing; }
+
+.region-list { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 8px; }
+.region-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 10px;
+}
+.region-fields { flex: 1; display: grid; gap: 6px; }
+.region-fields input, .region-fields select { width: 100%; }
+.pin-no {
+  flex: 0 0 auto;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #1a1204;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 600;
+}
+.pin-no.small { width: 19px; height: 19px; font-size: 11px; }
+.x {
+  flex: 0 0 auto;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+}
+.x:hover { color: var(--err); border-color: var(--err); }
+
+/* ---------- Paketler ---------- */
+.packages { position: static; }
+.pkg {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.pkg.busy { border-color: var(--accent); }
+.pkg-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.pkg-name {
+  flex: 1;
+  font-size: 14px; font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: var(--text);
+}
+.pkg-name:hover { border-color: var(--line); }
+.pkg-name:focus { outline: none; border-color: var(--accent); background: var(--panel); }
+
+.pkg-rows { display: grid; gap: 10px; }
+.pkg-row {
+  display: flex; gap: 10px; align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  padding: 10px;
+}
+.pkg-row-main { flex: 1; min-width: 0; }
+.pkg-row-title { font-size: 13px; font-weight: 600; margin-bottom: 7px; }
+.pkg-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.pkg-fields select, .pkg-fields input { width: 100%; min-width: 0; }
+.pkg-fields .row-note { grid-column: 1 / -1; }
+.pkg-fields input[type="color"] {
+  height: 38px; padding: 3px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.swatch-slot {
+  position: relative;
+  flex: 0 0 auto;
+  width: 84px; height: 84px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  display: grid; place-items: center;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11.5px;
+  cursor: pointer;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+.swatch-slot:hover, .swatch-slot:focus-visible, .swatch-slot.drag { border-color: var(--accent); color: var(--accent); outline: none; }
+.swatch-slot.filled { border-style: solid; }
+.swatch-slot img { width: 100%; height: 100%; object-fit: cover; }
+.swatch-slot .x { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; font-size: 12px; }
+
+.pkg-foot { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.pkg-status { color: var(--muted); font-size: 12px; }
+.pkg-steps { margin: 10px 0 0; }
+.pkg-error {
+  margin-top: 10px;
+  border: 1px solid rgba(224, 113, 95, .4);
+  background: rgba(224, 113, 95, .1);
+  color: var(--err);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 12.5px;
+}
+
+.pkg-result { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+.pkg-result-grid { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 14px; align-items: start; }
+.thumb {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  display: block;
+  width: 100%;
+}
+.thumb img { display: block; width: 100%; }
+.thumb span { display: block; padding: 7px; font-size: 11.5px; color: var(--muted); }
+.thumb:hover { border-color: var(--accent); }
+.thumb:hover span { color: var(--accent); }
+
+.legend { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 7px; }
+.legend li { display: flex; align-items: center; gap: 9px; font-size: 12.5px; }
+.legend b { font-weight: 600; }
+.legend .hint { display: block; margin: 1px 0 0; }
+.legend .dot { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--line); margin-left: auto; flex: 0 0 auto; }
+
+/* ---------- Karşılaştırma şeridi ---------- */
+.compare-strip { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 6px; }
+.compare-strip h3 { font-size: 13.5px; margin-bottom: 10px; }
+.strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+.strip-item { margin: 0; cursor: pointer; }
+.strip-item img { width: 100%; border-radius: 8px; border: 1px solid var(--line); display: block; }
+.strip-item:hover img { border-color: var(--accent); }
+.strip-item figcaption { font-size: 11.5px; color: var(--muted); margin-top: 5px; text-align: center; }
+
+/* ---------- Büyük görünüm ---------- */
+.lightbox {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(8, 9, 11, .93);
+  padding: 20px;
+  overflow: auto;
+  display: block;
+}
+.lightbox-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  max-width: 1400px; margin: 0 auto 12px;
+}
+.lightbox-head b { font-size: 15px; }
+.lightbox-head .hint { margin-left: 10px; }
+.lightbox .compare, .lightbox #lbRange, .lightbox .prompt-dump { max-width: 1400px; margin-left: auto; margin-right: auto; }
+.lightbox .prompt-dump { margin-top: 14px; }
+
+@media (max-width: 1100px) {
+  .layout, .layout-wide { grid-template-columns: 1fr; }
+  .output { position: static; }
+  .nav { order: 3; width: 100%; margin: 0; }
+  .pkg-result-grid { grid-template-columns: 1fr; }
+}

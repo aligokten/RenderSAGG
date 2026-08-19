@@ -41,7 +41,9 @@ export async function generate({ image, references = [], instruction, aspect = n
   ];
 
   references.forEach((ref, index) => {
-    parts.push({ text: `Referans görsel ${index + 1} — yalnızca malzeme, renk, ışık ve atmosfer kaynağı.` });
+    parts.push({
+      text: ref.caption || `Referans görsel ${index + 1} — yalnızca malzeme, renk, ışık ve atmosfer kaynağı.`
+    });
     parts.push({ inline_data: { mime_type: ref.mime, data: ref.buffer.toString('base64') } });
   });
 

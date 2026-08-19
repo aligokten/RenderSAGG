@@ -1,9 +1,19 @@
-# Mimari Render Fotogerçekçileştirme Paneli
+# Mimari Render Paneli
 
-Ham iç/dış mekân renderlarını **mimari projeye sadık kalarak** fotogerçekçi hale getiren web paneli.
+Ham iç/dış mekân renderlarını **mimari projeye sadık kalarak** işleyen web paneli. İki ekrandan oluşur:
+
+| Ekran | Adres | İşi |
+| --- | --- | --- |
+| **Fotogerçekçileştirme** | `/` | Ham renderı fotogerçekçi mimari fotoğrafa dönüştürür |
+| **Malzeme ve renk alternatifi paketleri** | `/paketler.html` | Aynı sahnenin farklı malzeme/renk/doku alternatiflerini üretir |
+
+Her iki ekranda da temel ilke aynıdır: **MİMARİYİ KORU, SADECE İSTENENİ DEĞİŞTİR.**
+
+---
+
+# 1 · Fotogerçekçileştirme ekranı
+
 Yüklenen görsel işlenir ve **indirilebilir 4K PNG** olarak sunulur.
-
-Temel ilke: **MİMARİYİ KORU, SADECE GERÇEKÇİLİĞİ GELİŞTİR.**
 
 ## Panelde neler var
 
@@ -15,6 +25,60 @@ Temel ilke: **MİMARİYİ KORU, SADECE GERÇEKÇİLİĞİ GELİŞTİR.**
 | 4 · Sahne ayarları | Sahne türü, zaman, hava, en-boy oranı, çıktı çözünürlüğü, sağlayıcı |
 | 5 · Ek isteklerim | Serbest prompt alanı + hazır ifade önerileri |
 | Sonuç | Ham/sonuç karşılaştırma sürgüsü, çözünürlük künyesi, PNG indirme, kalite kontrol listesi, modele gönderilen talimatın tamamı |
+
+---
+
+# 2 · Malzeme ve renk alternatifi paketleri (`/paketler.html`)
+
+Tek bir 3D renderı, farklı malzeme ve renk kurgularıyla **karşılaştırılabilir alternatifler** hâlinde sunar.
+
+## Akış
+
+1. **Referans render yüklenir** (PNG/JPG/WEBP).
+2. **Bölgeler işaretlenir:** render üzerinde değiştirilecek yüzeye tıklanır; her tıklama otomatik olarak
+   **numaralanır** (1, 2, 3 …). İşaretçi sürüklenerek konumu düzeltilebilir, bölgeye ad verilebilir
+   (“cephe kaplaması”, “tezgâh”) ve katalogdan yüzey türü seçilebilir.
+3. **Paketler hazırlanır:** istenen sayıda paket eklenir. Her pakette, her bölge numarası için üç yol vardır
+   ve birlikte de kullanılabilirler:
+   - o numaraya ait **yükleme alanına malzeme görseli** (kartela, doku fotoğrafı, ürün fotoğrafı) yüklenir,
+   - **katalogdan malzeme** seçilir (49 malzeme; her biri doku ölçeği, derz düzeni ve yansıma-pürüzlülük
+     tanımıyla birlikte gider),
+   - **renk** seçilir (25 renklik palet veya özel renk).
+4. **“Versiyonu render et”** butonuna basılır: o paketin alternatif render sahnesi üretilir. “Tüm paketleri
+   render et” bütün paketleri sırayla üretir.
+5. Sonuçlar **karşılaştırma şeridinde** yan yana listelenir; büyük görünümde sürgü ile referans render ile
+   karşılaştırılır ve her alternatif ayrı PNG olarak indirilir.
+
+Paket kartındaki **Kopyala** düğmesi, bir paketi tüm atamalarıyla çoğaltır: tek bir yüzeyi değiştirip
+seri alternatif üretmenin en hızlı yolu.
+
+## Alternatiflerin karşılaştırılabilirliği
+
+Talimat, alternatiflerin yan yana sunulacağını modele açıkça bildirir: geometri, kamera, kadraj, güneş
+yönü, gölge uzunlukları, gökyüzü ve pozlama sabit tutulur; **yalnızca numaralanmış bölgelerin malzemesi
+değişir.** Numaralar yalnızca talimatta kullanılır — çıktı görseline işaretçi, numara veya etiket
+çizilmez.
+
+Bölge konumu modele **oransal koordinat** (“sol kenardan %32, üst kenardan %61”) ve bölge adıyla
+birlikte iletilir; işaretlenen yüzey, o noktadaki sürekli yüzeyin doğal sınırlarına kadar (derz, köşe,
+profil) kapsanır. Bölgeye ad vermek doğru yüzeyin bulunmasını belirgin biçimde iyileştirir.
+
+Yüklenen malzeme görselleri yalnızca **doku, desen, renk ve yüzey karakteri** kaynağıdır; kartelanın
+kendi geometrisi, perspektifi, arka planı ve üzerindeki yazılar sahneye taşınmaz.
+
+## Malzeme kataloğu
+
+`server/materials.js` tek kaynaktır: **yüzey grupları** (cephe, çatı, doğrama, cam, dış zemin, korkuluk,
+pergola, iç duvar, iç zemin, tavan, dolap, tezgâh, döşeme kumaşı, serbest tanım), **malzemeler** (ahşap,
+doğal taş, beton ve sıva, seramik ve tuğla, metal, cam ve panel, boya, tekstil, zemin) ve **renk paleti**.
+
+Katalogda olmayan bir malzeme için “Kendim yazacağım…” seçilir; serbest metin de aynı kural setiyle
+işlenir. Doğal malzemelerde (ahşap, doğal taş, tuğla, korten) renk **düz boya gibi değil**, malzemenin
+doğal ton aralığında yorumlanır — bu ayrım katalogda `colorMode` alanıyla tutulur.
+
+---
+
+# Ortak kurulum ve altyapı
 
 ## Kurulum
 
@@ -38,7 +102,7 @@ Herkese açık bir adreste üç ayar önemlidir:
 | --- | --- |
 | `PANEL_PASSWORD` | Panel şifresi. **Boş bırakılırsa adresi bilen herkes panele girip API anahtarınızı harcayabilir.** |
 | `ALLOW_CLIENT_KEY` | `true` ise kullanıcı kendi API anahtarını panelden girer; anahtar sunucuda saklanmaz ve loglanmaz. |
-| `RATE_LIMIT_PER_HOUR` | IP başına saatlik üretim sınırı (varsayılan 20, `0` = sınırsız). |
+| `RATE_LIMIT_PER_HOUR` | IP başına saatlik üretim sınırı (varsayılan 20, `0` = sınırsız). Her paket ayrı bir üretimdir; hatalı girdi kotadan düşmez. |
 
 Şifre açıkken PNG indirme ucu da korumalıdır: panel dosyayı yetkili istekle çeker ve tarayıcıda
 blob olarak indirir. İşler bellekte tutulduğu için panel **tek instance** olarak çalıştırılmalıdır.
@@ -83,6 +147,11 @@ Tüm ajan kuralları `server/prompt.js` içinde tek yerde toplanmıştır:
 - `REFERENCE_RULES` — referans görsellerin sınırları
 - `NEGATIVE_PROMPT` — üretilmeyecekler listesi
 - `QC_CHECKLIST` — sonuç ekranındaki kalite kontrol maddeleri
+- `PACKAGE_RULES`, `REGION_RULES`, `SWATCH_RULES` — malzeme paketi modu: numaralanmış bölgeler, bölge
+  sınırları ve yüklenen malzeme görsellerinin sınırları
+- `PACKAGE_QC_CHECKLIST` — paket sonuçları için kalite kontrol maddeleri
+
+Malzeme, renk ve yüzey tanımları ise `server/materials.js` içindedir.
 
 Talimat metni sonuç ekranında “Modele gönderilen talimat” başlığı altında olduğu gibi görülebilir.
 
@@ -92,8 +161,9 @@ Talimat metni sonuç ekranında “Modele gönderilen talimat” başlığı alt
 | --- | --- |
 | `GET /healthz` | Sağlık kontrolü (kimlik doğrulama istemez) |
 | `POST /api/session` | Panel şifresini doğrular |
-| `GET /api/config` | Sağlayıcılar, modlar, sınırlar, kalite kontrol listesi (kilitliyken yalnızca `{locked:true}`) |
-| `POST /api/render` | İş başlatır (JSON, base64 görsel) → `202 { id }` |
+| `GET /api/config` | Sağlayıcılar, modlar, sınırlar, malzeme/renk/yüzey kataloğu, kalite kontrol listeleri (kilitliyken yalnızca `{locked:true}`) |
+| `POST /api/render` | Fotogerçekçileştirme işi başlatır (JSON, base64 görsel) → `202 { id }` |
+| `POST /api/packages` | Malzeme paketi işi başlatır: render + numaralı bölgeler + bölge başına malzeme/renk/kartela → `202 { id }` |
 | `GET /api/jobs/:id` | İş durumu, adımlar ve sonuç künyesi |
 | `GET /api/jobs/:id/download` | Nihai PNG (`content-disposition: attachment`) |
 
@@ -105,12 +175,16 @@ Talimat metni sonuç ekranında “Modele gönderilen talimat” başlığı alt
 server/
   index.js        HTTP sunucusu ve API uçları
   config.js       .env okuma, sınırlar, desteklenmeyen formatlar
-  prompt.js       ajan kural seti ve talimat üreticisi
+  prompt.js       ajan kural seti ve talimat üreticileri (fotogerçekçileştirme + malzeme paketi)
+  materials.js    yüzey grupları, malzeme kataloğu, renk paleti, kombinasyon üreticisi
   image.js        sharp işlemleri: girdi hazırlama, 4K yükseltme, önizleme
   pipeline.js     doğrulama, iş kuyruğu, uçtan uca akış
   providers/      gemini · openai · mock
-public/           panel arayüzü (bağımlılıksız HTML/CSS/JS)
-test/             prompt · görüntü · pipeline · sunucu testleri
+public/
+  index.html      fotogerçekçileştirme ekranı
+  paketler.html   malzeme ve renk alternatifi paketleri ekranı
+  app.js · paketler.js · styles.css   (bağımlılıksız HTML/CSS/JS)
+test/             prompt · malzeme · görüntü · pipeline · sunucu testleri
 Dockerfile        üretim imajı (node:22-slim)
 render.yaml       Render.com yapılandırması
 fly.toml          Fly.io yapılandırması
