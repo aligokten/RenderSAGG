@@ -46,6 +46,13 @@ export const config = {
     model: process.env.OPENAI_MODEL || 'gpt-image-1',
     baseUrl: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
   },
+  kling: {
+    apiKey: process.env.KLING_API_KEY || '',
+    // "global" geliştirici panelinden alınan tekli API anahtarı bu adrese göre çalışır.
+    // Anahtar Çin materyal panelinden alındıysa https://api.klingai.com kullanın.
+    baseUrl: process.env.KLING_BASE_URL || 'https://api-singapore.klingai.com',
+    model: process.env.KLING_MODEL || ''
+  },
 
   outputLongEdge: num(process.env.OUTPUT_LONG_EDGE, 3840), // 4K
   inputLongEdge: num(process.env.INPUT_LONG_EDGE, 1536),
