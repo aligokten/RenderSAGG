@@ -1,5 +1,6 @@
 import * as S from './lib/store.js';
 import * as R from './lib/rules.js';
+import * as C from './lib/catalog.js';
 import { loadDemo } from './lib/demo.js';
 
 /* =========================================================================
@@ -83,6 +84,50 @@ const eventsOf = (pred) => S.where('events', pred).sort((a, b) => (b.date || '')
 const intervalFor = (p) => num(p.inspectionIntervalDays) || num(S.settings().inspectionIntervalDays) || 30;
 const lastInspectionDate = (panelId) => inspectionsOf(panelId)[0]?.date || null;
 const isLive = (p) => !['Söküldü', 'Devre dışı'].includes(p.status);
+
+const products = () => C.allProducts(S.settings().customProducts || []);
+const productOf = (id) => (id ? C.findProduct(products(), id) : null);
+const prodLabel = (c) => C.productLabel(c, productOf(c.productId));
+const PROTECTIVE_FAMILY = [
+  'MCB (otomatik sigorta)', 'RCBO (kaçak akımlı otomatik)', 'RCCB (kaçak akım rölesi)', 'MCCB (kompakt şalter)', 'NH bıçaklı sigorta', 'Parafudr (SPD)'
+];
+const DEVICE_SHORT = {
+  'MCB (otomatik sigorta)': 'MCB', 'RCBO (kaçak akımlı otomatik)': 'RCBO', 'RCCB (kaçak akım rölesi)': 'RCCB',
+  'MCCB (kompakt şalter)': 'MCCB', 'NH bıçaklı sigorta': 'NH', 'Parafudr (SPD)': 'SPD'
+};
+function seriesOptionLabel(p) {
+  const parts = [p.series, '—', DEVICE_SHORT[p.device] || p.device];
+  if (p.breakingKa?.length) parts.push(p.breakingKa.join('/') + ' kA');
+  if (p.generic) parts.push('(genel)');
+  return parts.join(' ');
+}
+
+/** Marka → seri → model alanları; seri seçilince cihaz alanları katalogdan dolar. */
+function productFields() {
+  return [
+    {
+      k: 'brand', label: 'Marka', type: 'select', w: 2, empty: '— Katalog dışı —',
+      options: () => C.brandsOf(products()),
+      onChange: (v) => {
+        const p = productOf(v.productId);
+        if (p && p.brand === v.brand) return {};
+        const list = C.seriesOf(products(), v.brand);
+        return list.length === 1 ? C.applyProduct(list[0], v) : { productId: '', series: '' };
+      }
+    },
+    {
+      k: 'productId', label: 'Seri / ürün', type: 'select', w: 3, empty: '— Seri seçin —',
+      show: (v) => !!v.brand,
+      options: (v) => C.seriesOf(products(), v.brand).map((p) => ({ value: p.id, label: seriesOptionLabel(p) })),
+      onChange: (v) => (v.productId ? C.applyProduct(productOf(v.productId), v) : { series: '' })
+    },
+    { k: 'model', label: 'Model / ürün kodu', w: 1, placeholder: 'etiketten' }
+  ];
+}
+const catList = (key, fallback) => (v) => {
+  const p = productOf(v.productId);
+  return p && p[key]?.length ? p[key] : fallback;
+};
 
 function panelTitle(p) {
   return p ? `${p.code || '—'}${p.name ? ' · ' + p.name : ''}` : '—';
@@ -204,6 +249,15 @@ function panelFields(siteId, selfId) {
     { k: 'feedCable', label: 'Besleme kablosu', w: 3, placeholder: 'NYY 4x16+10' },
     { k: 'voltage', label: 'Gerilim', type: 'select', options: ['400/230 V', '400 V', '230 V'], w: 3, default: '400/230 V' },
     { section: 'Giriş ve koruma' },
+    {
+      k: 'mainProductId', label: 'Giriş cihazı (katalogdan)', type: 'select', w: 6, empty: '— Katalog dışı / elle yazılacak —',
+      options: () => products().filter((p) => ['MCCB (kompakt şalter)', 'MCB (otomatik sigorta)', 'RCCB (kaçak akım rölesi)'].includes(p.device))
+        .map((p) => ({ value: p.id, label: `${p.brand} ${p.series} — ${DEVICE_SHORT[p.device]}${p.breakingKa?.length ? ' ' + p.breakingKa.join('/') + ' kA' : ''}` })),
+      onChange: (v) => {
+        const p = productOf(v.mainProductId);
+        return p ? { mainDevice: `${p.brand} ${p.series}`, mainRating: p.ratings.includes(Number(v.mainRating)) ? v.mainRating : '' } : {};
+      }
+    },
     { k: 'mainDevice', label: 'Giriş cihazı', w: 2, placeholder: 'MCCB 3P / Yük ayırıcı 4P' },
     { k: 'mainRating', label: 'Giriş anma akımı', type: 'number', unit: 'A', w: 2 },
     { k: 'mainRcdMa', label: 'Giriş kaçak akım', type: 'select', options: [{ value: '', label: 'Yok' }, ...opts(R.RCD_MA).map((o) => ({ ...o, label: o.label + ' mA' }))], w: 2 },
@@ -234,20 +288,15 @@ function circuitFields(panel, selfId) {
     { k: 'status', label: 'Durum', type: 'select', options: R.CIRCUIT_STATUS, w: 2, default: 'Aktif' },
     { k: 'lotoBy', label: 'Kilidi takan', w: 3, show: (v) => v.status === 'Kilitli (LOTO)', required: (v) => v.status === 'Kilitli (LOTO)' },
     { k: 'lotoNote', label: 'Kilit nedeni', w: 3, show: (v) => v.status === 'Kilitli (LOTO)' },
-    { section: 'Koruma cihazı' },
+    { section: 'Koruma cihazı — hazır üründen seçin' },
+    ...productFields(),
     { k: 'device', label: 'Cihaz', type: 'select', options: R.DEVICE_TYPES, w: 3, default: 'MCB (otomatik sigorta)' },
-    { k: 'curve', label: 'Eğri / sınıf', type: 'select', options: R.CURVES, w: 1, empty: '—', show: protective },
-    { k: 'rating', label: 'Anma akımı', type: 'number', unit: 'A', w: 2, list: R.RATINGS },
-    { k: 'poles', label: 'Kutup', type: 'select', options: Object.keys(R.POLES), w: 2, default: '1P+N' },
+    ...deviceSpecFields({ protective, isRcd }),
     { k: 'phase', label: 'Faz', type: 'select', options: R.PHASES, w: 2, empty: '—', help: 'Tek fazlıda L1/L2/L3; 3 fazlıda 3F.' },
-    { k: 'breakingKa', label: 'Kesme kapasitesi', type: 'select', options: opts(R.BREAKING_KA).map((o) => ({ ...o, label: o.label + ' kA' })), w: 2, empty: '—', show: protective },
-    { k: 'rcdMa', label: 'Kaçak akım', type: 'select', options: opts(R.RCD_MA).map((o) => ({ ...o, label: o.label + ' mA' })), w: 2, empty: '—', show: isRcd },
-    { k: 'rcdType', label: 'RCD tipi', type: 'select', options: R.RCD_TYPES, w: 2, empty: '—', show: isRcd },
     {
       k: 'protectedBy', label: 'Bağlı olduğu kaçak akım rölesi', type: 'select', w: 4, empty: rcds.length ? '— Yok —' : '— Bu panoda RCCB/RCBO yok —',
       options: () => rcds.map((c) => ({ value: c.id, label: `${c.code} · ${R.deviceShort(c)}` })), show: (v) => !isRcd(v)
     },
-    { k: 'brand', label: 'Marka / model', w: 2 },
     { section: 'Kablo ve yük' },
     { k: 'cableType', label: 'Kablo tipi', type: 'select', options: R.CABLE_TYPES, w: 2, empty: '—' },
     { k: 'cableCores', label: 'Damar', w: 1, placeholder: '3x' },
@@ -256,7 +305,20 @@ function circuitFields(panel, selfId) {
     { k: 'loadKw', label: 'Kurulu / tahmini yük', type: 'number', unit: 'kW', w: 2, step: '0.01' },
     { k: 'cosphi', label: 'cos φ', type: 'number', w: 2, step: '0.01', placeholder: String(S.settings().defaultCosphi) },
     { k: 'notes', label: 'Notlar', type: 'textarea' },
-    { issues: (v) => circuitIssues({ ...v, panelId: panel.id }, panel) }
+    { issues: (v) => [...C.checkAgainstProduct(v, productOf(v.productId)), ...circuitIssues({ ...v, panelId: panel.id }, panel)] }
+  ];
+}
+
+/** Eğri, anma, kutup, kesme kapasitesi ve kaçak akım alanları — seri seçiliyse katalog aralığıyla. */
+function deviceSpecFields({ protective = (v) => R.PROTECTIVE.has(v.device), isRcd = (v) => R.RCD_DEVICES.has(v.device) } = {}) {
+  const withUnit = (list, unit) => opts(list).map((o) => ({ ...o, label: `${o.label} ${unit}` }));
+  return [
+    { k: 'curve', label: 'Eğri / sınıf', type: 'select', w: 1, empty: '—', show: protective, options: catList('curves', R.CURVES) },
+    { k: 'rating', label: 'Anma akımı', type: 'select', numeric: true, w: 2, empty: '—', options: (v) => withUnit(catList('ratings', R.RATINGS)(v), 'A') },
+    { k: 'poles', label: 'Kutup', type: 'select', w: 2, default: '1P+N', options: catList('poles', Object.keys(R.POLES)) },
+    { k: 'breakingKa', label: 'Kesme kapasitesi', type: 'select', numeric: true, w: 2, empty: '—', show: protective, options: (v) => withUnit(catList('breakingKa', R.BREAKING_KA)(v), 'kA') },
+    { k: 'rcdMa', label: 'Kaçak akım', type: 'select', numeric: true, w: 2, empty: '—', show: isRcd, options: (v) => withUnit(catList('rcdMa', R.RCD_MA)(v), 'mA') },
+    { k: 'rcdType', label: 'RCD tipi', type: 'select', w: 2, empty: '—', show: isRcd, options: catList('rcdTypes', R.RCD_TYPES) }
   ];
 }
 
@@ -325,7 +387,7 @@ function readForm() {
     if (!el) continue;
     if (f.type === 'number') v[f.k] = el.value === '' ? '' : Number(el.value);
     else if (f.type === 'checkbox') v[f.k] = el.checked;
-    else if (f.type === 'select' && el.value !== '' && Array.isArray(f.options) && f.options.some((o) => typeof (o?.value ?? o) === 'number')) v[f.k] = Number(el.value);
+    else if (f.type === 'select' && el.value !== '' && (f.numeric || (Array.isArray(f.options) && f.options.some((o) => typeof (o?.value ?? o) === 'number')))) v[f.k] = Number(el.value);
     else v[f.k] = el.value;
   }
   for (const f of formState.fields) if (f.type === 'photos') v[f.k] = [...formState.photos[f.k]];
@@ -470,6 +532,24 @@ modal.addEventListener('cancel', (e) => {
 });
 modal.addEventListener('input', () => formState && refreshForm());
 modal.addEventListener('change', async (e) => {
+  const changed = formState && e.target.name && formState.fields.find((f) => f.k === e.target.name);
+  if (changed?.onChange) {
+    const patch = changed.onChange(readForm()) || {};
+    const form = document.getElementById('modal-form');
+    for (const [k, val] of Object.entries(patch)) formState.values[k] = val;
+    refreshForm();
+    for (const [k, val] of Object.entries(patch)) {
+      const el = form.elements[k];
+      if (el && el.type !== 'file') el.value = val ?? '';
+    }
+    refreshForm();
+    for (const [k, val] of Object.entries(patch)) {
+      const el = form.elements[k];
+      if (el && el.type !== 'file') el.value = val ?? '';
+    }
+    refreshForm();
+    return;
+  }
   const input = e.target.closest('[data-photo-input]');
   if (!input || !formState) return;
   const k = input.dataset.photoInput;
@@ -595,6 +675,9 @@ function editCircuit(panel, circuit, preset = {}) {
       if (dup) return `${panel.code} panosunda ${v.code} numarası zaten kullanılıyor.`;
       if (R.isThreePhase(v)) v.phase = '3F';
       else if (v.phase === '3F') v.phase = '';
+      const prod = v.brand ? productOf(v.productId) : null;
+      v.productId = prod?.id || '';
+      v.series = prod?.series || '';
       const wasLoto = circuit?.status === 'Kilitli (LOTO)';
       const isLoto = v.status === 'Kilitli (LOTO)';
       if (isLoto && !wasLoto) v.lotoAt = new Date().toISOString();
@@ -628,12 +711,11 @@ function bulkCircuits(panel) {
       { k: 'rotate', label: 'Faz dağıtımı', type: 'select', options: ['L1 → L2 → L3 sırayla', 'En az yüklü faza', 'Atama yapma'], w: 2 },
       { k: 'label', label: 'Beslediği yer (ön ek)', w: 3, placeholder: 'Daire prizleri → "Daire prizleri 1, 2…"' },
       { k: 'loadKind', label: 'Yük türü', type: 'select', options: R.LOAD_KINDS, w: 3, empty: '—' },
+      { section: 'Cihaz — hazır üründen seçin' },
+      ...productFields(),
       { k: 'device', label: 'Cihaz', type: 'select', options: R.DEVICE_TYPES, w: 3, default: 'MCB (otomatik sigorta)' },
-      { k: 'curve', label: 'Eğri', type: 'select', options: R.CURVES, w: 1, default: 'C' },
-      { k: 'rating', label: 'Anma', type: 'number', unit: 'A', w: 2, default: 16, list: R.RATINGS },
-      { k: 'poles', label: 'Kutup', type: 'select', options: Object.keys(R.POLES), w: 2, default: '1P+N' },
-      { k: 'breakingKa', label: 'Kesme kap.', type: 'select', options: opts(R.BREAKING_KA).map((o) => ({ ...o, label: o.label + ' kA' })), w: 2, default: 6 },
-      { k: 'rcdMa', label: 'Kaçak akım', type: 'select', options: opts(R.RCD_MA).map((o) => ({ ...o, label: o.label + ' mA' })), w: 2, empty: '—', show: (v) => R.RCD_DEVICES.has(v.device) },
+      ...deviceSpecFields().map((f) => ({ ...f, default: { curve: 'C', rating: 16, breakingKa: 6, poles: '1P+N' }[f.k] ?? f.default })),
+      { section: 'Kablo ve yük' },
       { k: 'cableType', label: 'Kablo', type: 'select', options: R.CABLE_TYPES, w: 2, empty: '—' },
       { k: 'cableSection', label: 'Kesit', type: 'select', options: opts(R.CABLE_SECTIONS).map((o) => ({ ...o, label: o.label + ' mm²' })), w: 2, empty: '—' },
       { k: 'loadKw', label: 'Devre başı yük', type: 'number', unit: 'kW', w: 2, step: '0.01' }
@@ -652,7 +734,8 @@ function bulkCircuits(panel) {
         S.create('circuits', {
           siteId: panel.siteId, panelId: panel.id, code: `${prefix}${first + i}`,
           label: v.label ? `${v.label} ${i + 1}` : '', loadKind: v.loadKind, device: v.device, curve: v.curve, rating: v.rating,
-          poles: v.poles, phase, breakingKa: v.breakingKa, rcdMa: v.rcdMa, cableType: v.cableType, cableSection: v.cableSection,
+          poles: v.poles, phase, breakingKa: v.breakingKa, rcdMa: v.rcdMa, rcdType: v.rcdType, cableType: v.cableType, cableSection: v.cableSection,
+          brand: v.brand, productId: v.brand ? v.productId : '', series: v.brand ? productOf(v.productId)?.series || '' : '', model: v.model,
           loadKw: v.loadKw, status: 'Aktif'
         });
       }
@@ -757,6 +840,8 @@ const CIRCUIT_COLUMNS = [
   { label: 'Durum', key: 'status' },
   { label: 'LOTO', key: 'lotoBy' },
   { label: 'Marka', key: 'brand' },
+  { label: 'Seri', get: (c) => productOf(c.productId)?.series || c.series || '' },
+  { label: 'Model', key: 'model' },
   { label: 'Not', key: 'notes' },
   { label: 'Uyarılar', get: (c) => circuitIssues(c).filter((i) => i.level !== 'info').map((i) => i.msg).join(' | ') }
 ];
@@ -853,12 +938,12 @@ function circuitTable(circuits, { showPanel = false, id = 'ctable' } = {}) {
       const issues = circuitIssues(c, panel);
       const lvl = issues.some((i) => i.level === 'err') ? 'err' : issues.some((i) => i.level === 'warn') ? 'warn' : '';
       const trips = S.where('events', (e) => e.circuitId === c.id && e.type === 'Sigorta attı' && Date.now() - new Date(e.date) < 30 * 86400000).length;
-      const search = [c.code, c.label, c.loadKind, c.location, c.device, R.deviceShort(c), c.cableType, c.cableSection, c.notes, panel?.code].join(' ').toLocaleLowerCase('tr');
+      const search = [c.code, c.label, c.loadKind, c.location, c.device, R.deviceShort(c), c.cableType, c.cableSection, c.notes, panel?.code, prodLabel(c)].join(' ').toLocaleLowerCase('tr');
       return `<tr class="clickable st-${esc((c.status || '').split(' ')[0])}" data-act="open-circuit" data-id="${c.id}" data-search="${esc(search)}" data-status="${esc(c.status)}" data-phase="${esc(c.phase)}" data-level="${lvl}">
         <td class="nowrap"><b class="mono">${esc(c.code)}</b>${lvl ? ` <span class="dot ${lvl}" style="display:inline-block;width:8px;height:8px;border-radius:99px" title="${esc(issues.filter((i) => i.level === lvl).map((i) => i.msg).join('\n'))}"></span>` : ''}</td>
         ${showPanel ? `<td class="nowrap"><a href="#/pano/${panel?.id}" data-stop>${esc(panel?.code)}</a></td>` : ''}
         <td>${val(c.label)}${c.location ? `<div class="small muted">${esc(c.location)}</div>` : ''}</td>
-        <td class="nowrap">${esc(R.deviceShort(c)) || '<span class="muted">—</span>'}</td>
+        <td class="nowrap">${esc(R.deviceShort(c)) || '<span class="muted">—</span>'}${prodLabel(c) ? `<div class="small muted">${esc(prodLabel(c))}</div>` : ''}</td>
         <td>${phaseTag(c)}</td>
         <td class="nowrap">${c.cableSection ? `${esc(c.cableType || '')} ${esc(c.cableCores || '')}${esc(c.cableSection)} mm²` : '<span class="muted">—</span>'}</td>
         <td class="num">${blank(c.loadKw) || !c.loadKw ? '<span class="muted">—</span>' : esc(c.loadKw)}</td>
@@ -1033,6 +1118,7 @@ function viewSite(id, q) {
   if (tab === 'panolar') body = panelTree(id);
   if (tab === 'devreler') body = circuits.length ? circuitToolbar('site-circuits') + circuitTable(circuits, { showPanel: true, id: 'site-circuits' }) : emptyState('Devre yok', 'Panolara devre ekledikçe burada listelenir.');
   if (tab === 'kontroller') body = inspectionTable(insp);
+  if (tab === 'malzeme') body = bomView(withPanelCodes(circuits), `${slug(s.code || s.name)}-malzeme`);
   if (tab === 'olaylar') body = events.length ? `<div class="card"><ul class="list">${events.map(eventRow).join('')}</ul></div>` : emptyState('Olay kaydı yok', 'Sigorta atması, arıza, değişim ve LOTO hareketleri burada birikir.');
   if (tab === 'bilgi') {
     body = `<div class="card"><dl class="spec">
@@ -1060,6 +1146,7 @@ function viewSite(id, q) {
   ${tabs(base, tab, [
     ['panolar', 'Pano ağacı', `<span class="badge">${panels.length}</span>`],
     ['devreler', 'Tüm devreler', `<span class="badge">${circuits.length}</span>`],
+    ['malzeme', 'Malzeme listesi'],
     ['kontroller', 'Kontroller', `<span class="badge">${insp.length}</span>`],
     ['olaylar', 'Olaylar', `<span class="badge">${events.length}</span>`],
     ['bilgi', 'Bilgiler'],
@@ -1201,6 +1288,7 @@ function viewPanel(id, q) {
   }
   if (tab === 'gorunum') body = railView(p, circuits);
   if (tab === 'yuk') body = loadView(p, circuits);
+  if (tab === 'malzeme') body = bomView(circuits, `${slug(p.code)}-malzeme`);
   if (tab === 'kontroller') body = `<div class="toolbar"><button class="btn primary" data-act="new-inspection" data-panel="${id}">+ Kontrol</button><span class="muted small">Kontrol aralığı: ${intervalFor(p)} gün · ${inspectionStateBadge(p)}</span></div>${inspectionTable(insp)}`;
   if (tab === 'olaylar') body = `<div class="toolbar"><button class="btn primary" data-act="new-event" data-panel="${id}">+ Olay</button></div>${events.length ? `<div class="card"><ul class="list">${events.map(eventRow).join('')}</ul></div>` : emptyState('Olay kaydı yok', 'Devre tablosundaki ⚡ düğmesiyle sigorta atmalarını tek dokunuşla kaydedebilirsiniz.')}`;
   if (tab === 'uyarilar') body = `<div class="card">${issueList(issues, { link: true })}</div><p class="small muted" style="margin-top:10px">Bu denetimler kayıt hatalarını yakalamak içindir; proje hesabının, seçicilik etüdünün ve yetkili kişinin periyodik kontrolünün yerini tutmaz. Kablo kapasiteleri bakır/PVC, döşeme yöntemi C, 30 °C değerleridir; düzeltme faktörü uygulanmaz.</p>`;
@@ -1242,6 +1330,7 @@ function viewPanel(id, q) {
     ['devreler', 'Devreler', `<span class="badge">${circuits.length}</span>`],
     ['gorunum', 'Pano görünümü'],
     ['yuk', 'Yük ve faz'],
+    ['malzeme', 'Malzeme'],
     ['uyarilar', 'Uyarılar', errs ? `<span class="badge err">${errs}</span>` : warns ? `<span class="badge warn">${warns}</span>` : ''],
     ['kontroller', 'Kontroller', `<span class="badge">${insp.length}</span>`],
     ['olaylar', 'Olaylar', `<span class="badge">${events.length}</span>`],
@@ -1319,7 +1408,7 @@ function viewSearch(q) {
   const has = (...xs) => xs.join(' ').toLocaleLowerCase('tr').includes(term);
   const sites = sitesAll().filter((s) => has(s.name, s.code, s.address, s.client));
   const panels = S.all('panels').filter((p) => has(p.code, p.name, p.location, p.type, p.notes));
-  const circuits = S.all('circuits').filter((c) => has(c.code, c.label, c.location, c.loadKind, R.deviceShort(c), c.cableType, c.notes, c.brand));
+  const circuits = S.all('circuits').filter((c) => has(c.code, c.label, c.location, c.loadKind, R.deviceShort(c), c.cableType, c.notes, c.brand, c.series, c.model));
   return `
   <div class="page-head"><div class="titles"><h1>“${esc(q.get('q'))}” için sonuçlar</h1><p>${sites.length + panels.length + circuits.length} sonuç</p></div></div>
   ${sites.length ? `<h2 style="margin-bottom:10px">Şantiyeler</h2><div class="grid cards" style="margin-bottom:18px">${sites.map(siteCard).join('')}</div>` : ''}
@@ -1327,6 +1416,122 @@ function viewSearch(q) {
   ${circuits.length ? `<h2 style="margin-bottom:10px">Devreler</h2>${circuitTable(circuits.slice(0, 300), { showPanel: true, id: 'search-circuits' })}` : ''}
   ${!sites.length && !panels.length && !circuits.length ? emptyState('Sonuç yok', 'Pano kodu, devre numarası, mahal, kablo tipi veya cihaz (ör. “C16”, “RCBO”) ile arayın.') : ''}`;
 }
+
+const range = (list, unit = '') => {
+  if (!list?.length) return '<span class="muted">—</span>';
+  if (list.length > 4 && list.every((x) => typeof x === 'number')) return `${list[0]}–${list[list.length - 1]}${unit} <span class="muted small">(${list.length} değer)</span>`;
+  return esc(list.join(', ')) + unit;
+};
+
+function viewCatalog(q) {
+  const all = products();
+  const brand = q.get('marka') || '';
+  const dev = q.get('cihaz') || '';
+  const list = all.filter((p) => (!brand || p.brand === brand) && (!dev || p.device === dev));
+  const usage = new Map();
+  for (const c of S.all('circuits')) if (c.productId) usage.set(c.productId, (usage.get(c.productId) || 0) + 1);
+  const href = (patch) => {
+    const p = new URLSearchParams({ marka: brand, cihaz: dev, ...patch });
+    for (const [k, v] of [...p]) if (!v) p.delete(k);
+    return `#/katalog?${p}`;
+  };
+  return `
+  <div class="page-head"><div class="titles"><h1>Ürün kataloğu</h1>
+    <p>Sigorta grubu için hazır ürünler. Devre eklerken <b>Marka → Seri</b> seçildiğinde cihaz türü, eğri, anma akımı, kutup, kesme kapasitesi ve kaçak akım seçenekleri buradan gelir.</p></div>
+    <div class="actions"><button class="btn primary" data-act="new-product">+ Kendi ürünüm</button></div></div>
+  <nav class="tabs"><a href="${href({ marka: '' })}" class="${!brand ? 'active' : ''}">Tümü <span class="badge">${all.length}</span></a>
+    ${C.brandsOf(all).map((b) => `<a href="${href({ marka: b })}" class="${brand === b ? 'active' : ''}">${esc(b)} <span class="badge">${all.filter((p) => p.brand === b).length}</span></a>`).join('')}</nav>
+  <div class="toolbar"><select data-nav-select>
+    <option value="${href({ cihaz: '' })}">Tüm cihaz türleri</option>
+    ${PROTECTIVE_FAMILY.map((d) => `<option value="${href({ cihaz: d })}"${d === dev ? ' selected' : ''}>${esc(d)}</option>`).join('')}
+  </select></div>
+  <div class="table-wrap"><table class="data"><thead><tr><th>Marka</th><th>Seri</th><th>Cihaz</th><th>Eğri</th><th>Anma (A)</th><th>Kutup</th><th>Kesme</th><th>Kaçak akım</th><th class="num">Kullanım</th><th></th></tr></thead><tbody>
+  ${list.map((p) => `<tr>
+    <td class="nowrap"><b>${esc(p.brand)}</b></td>
+    <td>${esc(p.series)} ${p.generic ? '<span class="badge info" title="Seri adı genel tanımdır; model kodunu ürün etiketinden yazın.">genel</span>' : ''}${p.builtin ? '' : ' <span class="badge accent">kendi</span>'}${p.note ? `<div class="small muted">${esc(p.note)}</div>` : ''}</td>
+    <td class="nowrap">${esc(DEVICE_SHORT[p.device] || p.device)}</td>
+    <td>${range(p.curves)}</td><td>${range(p.ratings)}</td><td class="small">${range(p.poles)}</td>
+    <td class="nowrap">${range(p.breakingKa, ' kA')}</td>
+    <td class="small">${p.rcdMa?.length ? `${esc(p.rcdMa.join('/'))} mA · ${esc(p.rcdTypes.join(', '))}` : '<span class="muted">—</span>'}</td>
+    <td class="num">${usage.get(p.id) || ''}</td>
+    <td class="nowrap">${p.builtin ? `<button class="btn sm" data-act="copy-product" data-id="${p.id}" title="Bu seriden kendi ürününü oluştur">Kopyala</button>` : `<button class="btn sm" data-act="edit-product" data-id="${p.id}">Düzenle</button>`}</td></tr>`).join('') || '<tr><td colspan="10" class="muted">Ürün yok.</td></tr>'}
+  </tbody></table></div>
+  <p class="small muted" style="margin-top:10px">Değerler üreticilerin kataloglarındaki tipik seri aralıklarıdır; her anma/kutup kombinasyonu her seride bulunmayabilir ve sipariş kodu içermez. “Genel” işaretli kayıtlar markanın ürün ailesini temsil eder. Projeye yazmadan veya satın almadan önce ürün etiketini ve güncel kataloğu doğrulayın. Listede olmayan bir seri için <b>+ Kendi ürünüm</b> ile ekleyin; kendi ürünleriniz yedek dosyasına dahildir.</p>`;
+}
+
+function productForm(existing, { copyOf } = {}) {
+  const base = existing || (copyOf ? { ...copyOf, series: copyOf.series + ' (kopya)' } : {});
+  const join = (x) => (Array.isArray(x) ? x.join(', ') : x || '');
+  openForm({
+    title: existing ? `Ürünü düzenle — ${existing.brand} ${existing.series}` : 'Kendi ürünüm',
+    submitLabel: 'Kataloğa kaydet',
+    fields: [
+      { k: 'brand', label: 'Marka', required: true, w: 3, list: null, placeholder: 'Legrand, Siemens, Viko…' },
+      { k: 'series', label: 'Seri / model', required: true, w: 3, placeholder: 'ör. DX³ 6000' },
+      { k: 'device', label: 'Cihaz türü', type: 'select', options: PROTECTIVE_FAMILY, w: 3, default: 'MCB (otomatik sigorta)' },
+      { k: 'breakingKa', label: 'Kesme kapasitesi (kA)', w: 3, placeholder: '6 veya 6, 10' },
+      { k: 'curves', label: 'Eğriler', w: 2, placeholder: 'B, C, D' },
+      { k: 'poles', label: 'Kutuplar', w: 4, placeholder: '1P, 1P+N, 2P, 3P, 3P+N, 4P' },
+      { k: 'ratings', label: 'Anma akımları (A)', placeholder: '6, 10, 16, 20, 25, 32, 40, 50, 63' },
+      { k: 'rcdMa', label: 'Kaçak akım (mA)', w: 3, placeholder: '30, 300', show: (v) => /RCBO|RCCB/.test(v.device) },
+      { k: 'rcdTypes', label: 'RCD tipleri', w: 3, placeholder: 'AC, A', show: (v) => /RCBO|RCCB/.test(v.device) },
+      { k: 'note', label: 'Not', type: 'textarea' }
+    ],
+    values: { ...base, curves: join(base.curves), poles: join(base.poles), ratings: join(base.ratings), breakingKa: join(base.breakingKa), rcdMa: join(base.rcdMa), rcdTypes: join(base.rcdTypes) },
+    onDelete: existing
+      ? () => {
+          const used = S.where('circuits', (c) => c.productId === existing.id).length;
+          if (!confirm(`${existing.brand} ${existing.series} katalogdan silinsin mi?${used ? `\n\n${used} devrede kullanılıyor; bu devrelerdeki marka/seri yazısı korunur.` : ''}`)) return;
+          S.updateSettings({ customProducts: (S.settings().customProducts || []).filter((p) => p.id !== existing.id) });
+          closeModal({ discard: false });
+          toast('Ürün silindi.');
+        }
+      : null,
+    onSubmit: (v) => {
+      const p = C.normalizeCustom({ ...v, id: existing?.id });
+      if (!p.brand || !p.series) return 'Marka ve seri zorunlu.';
+      if (!existing && products().some((x) => x.id === p.id)) return `${p.brand} ${p.series} katalogda zaten var; seri adını değiştirin.`;
+      if (/RCBO|RCCB/.test(p.device) && !p.rcdMa.length) return 'Kaçak akım cihazı için en az bir mA değeri girin.';
+      const list = (S.settings().customProducts || []).filter((x) => x.id !== p.id);
+      S.updateSettings({ customProducts: [...list, p] });
+      toast('Ürün kataloğa kaydedildi.');
+      return true;
+    }
+  });
+}
+
+/** Şantiye düzeyinde devre numaraları panolar arasında tekrarlanır: "KP-1/F2" biçimine getir. */
+function withPanelCodes(circuits) {
+  return circuits.map((c) => ({ ...c, code: `${S.get('panels', c.panelId)?.code || '?'}/${c.code}` }));
+}
+
+function bomView(circuits, fileBase) {
+  const rows = C.billOfMaterials(circuits, products());
+  if (!rows.length) return emptyState('Malzeme yok', 'Devrelere cihaz girildikçe malzeme listesi oluşur.');
+  const total = rows.reduce((n, r) => n + r.qty, 0);
+  const noBrand = rows.filter((r) => !r.brand).reduce((n, r) => n + r.qty, 0);
+  return `<div class="toolbar"><button class="btn" data-act="csv-bom" data-file="${esc(fileBase)}">CSV indir</button>
+    <span class="small muted">${rows.length} kalem · ${total} adet${noBrand ? ` · <span style="color:var(--warn)">${noBrand} cihazın markası girilmemiş</span>` : ''}</span></div>
+  <div class="table-wrap"><table class="data" id="bom"><thead><tr><th>Marka</th><th>Seri / model</th><th>Cihaz</th><th>Tanım</th><th class="num">Adet</th><th>Devreler</th></tr></thead><tbody>
+  ${rows.map((r) => `<tr><td>${val(r.brand)}</td><td>${val(r.series)}</td><td class="nowrap">${esc(DEVICE_SHORT[r.device] || r.device)}</td>
+    <td class="nowrap">${esc(R.deviceShort(r))}${r.breakingKa ? ` · ${esc(r.breakingKa)} kA` : ''}</td><td class="num"><b>${r.qty}</b></td>
+    <td class="small muted">${esc(r.codes.slice(0, 12).join(', '))}${r.codes.length > 12 ? '…' : ''}</td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+const BOM_COLUMNS = [
+  { label: 'Marka', key: 'brand' },
+  { label: 'Seri / model', key: 'series' },
+  { label: 'Cihaz', key: 'device' },
+  { label: 'Eğri', key: 'curve' },
+  { label: 'Anma (A)', key: 'rating' },
+  { label: 'Kutup', key: 'poles' },
+  { label: 'Kesme (kA)', key: 'breakingKa' },
+  { label: 'Kaçak (mA)', key: 'rcdMa' },
+  { label: 'RCD tipi', key: 'rcdType' },
+  { label: 'Adet', key: 'qty' },
+  { label: 'Devreler', get: (r) => r.codes.join(', ') }
+];
 
 function viewSettings() {
   const st = S.settings();
@@ -1362,7 +1567,7 @@ function viewSettings() {
     <div class="actions" style="margin-top:12px"><button class="btn" data-act="demo">Örnek şantiye ekle</button><button class="btn danger" data-act="reset">Tüm verileri sil</button></div>
   </section>
   <section class="card"><h2 style="margin-bottom:8px">Hakkında</h2>
-    <p class="small">Pano Saha, şantiyelerdeki elektrik panolarının, sigorta ve koruma cihazlarının, kablo ve yük bilgilerinin, periyodik kontrollerin, arıza ve LOTO kayıtlarının tutulduğu sunucusuz bir sahadır. İnternet bağlantısı yalnızca sayfanın ilk açılışı için gerekir; QR kodu dahil her şey cihazda üretilir.</p>
+    <p class="small">FAM Pano, şantiyelerdeki elektrik panolarının, sigorta ve koruma cihazlarının, kablo ve yük bilgilerinin, periyodik kontrollerin, arıza ve LOTO kayıtlarının tutulduğu sunucusuz bir sahadır. İnternet bağlantısı yalnızca sayfanın ilk açılışı için gerekir; QR kodu dahil her şey cihazda üretilir.</p>
     <p class="small muted">Otomatik denetimler bilgilendirme amaçlıdır; elektrik projesinin, kısa devre ve seçicilik hesaplarının ve yetkili kişilerce yapılan periyodik kontrollerin yerini tutmaz.</p>
   </section></div>`;
 }
@@ -1397,11 +1602,11 @@ function viewPrint(id) {
     </div>
     <div class="danger-strip"><span>⚡ TEHLİKE — YÜKSEK GERİLİM · Müdahaleden önce enerjiyi kesin, kilitleyin ve gerilim yokluğunu ölçün. Yetkisiz kişiler dokunamaz.</span></div>
     <table><thead><tr><th style="width:42px">No</th><th>Beslediği yer</th><th style="width:120px">Cihaz</th><th style="width:34px">Faz</th><th style="width:110px">Kablo</th><th style="width:70px">Durum</th></tr></thead><tbody>
-      ${circuits.map((c) => `<tr><td><b>${esc(c.code)}</b></td><td>${esc(c.label || (c.status === 'Yedek' ? 'Yedek' : ''))}${c.location ? ` — ${esc(c.location)}` : ''}</td><td>${esc(R.deviceShort(c))}</td><td>${esc(R.isThreePhase(c) ? '3F' : c.phase || '')}</td><td>${c.cableSection ? `${esc(c.cableType || '')} ${esc(c.cableCores || '')}${esc(c.cableSection)} mm²` : ''}</td><td>${esc(c.status === 'Aktif' ? '' : c.status)}</td></tr>`).join('') || '<tr><td colspan="6">Devre kaydı yok.</td></tr>'}
+      ${circuits.map((c) => `<tr><td><b>${esc(c.code)}</b></td><td>${esc(c.label || (c.status === 'Yedek' ? 'Yedek' : ''))}${c.location ? ` — ${esc(c.location)}` : ''}</td><td>${esc(R.deviceShort(c))}${prodLabel(c) ? `<br><small>${esc(prodLabel(c))}</small>` : ''}</td><td>${esc(R.isThreePhase(c) ? '3F' : c.phase || '')}</td><td>${c.cableSection ? `${esc(c.cableType || '')} ${esc(c.cableCores || '')}${esc(c.cableSection)} mm²` : ''}</td><td>${esc(c.status === 'Aktif' ? '' : c.status)}</td></tr>`).join('') || '<tr><td colspan="6">Devre kaydı yok.</td></tr>'}
     </tbody></table>
     <h2>Cihaz etiket şeridi</h2>
     ${chunkRows(circuits, perRow).map((row) => `<div class="labels">${row.map((c) => `<div class="lab" style="width:${(Math.min(perRow, R.moduleWidth(c)) * mm).toFixed(1)}mm"><b>${esc(c.code)}</b>${esc(R.deviceShort(c).replace(/ (1P\+N|1P|2P|3P\+N|3P|4P)/, ''))}<br>${esc(c.label || '')}</div>`).join('')}</div>`).join('')}
-    <div class="foot"><span>Pano Saha · yazdırma ${new Date().toLocaleString('tr-TR')}</span><span>Son kontrol: ${fmtDate(lastInspectionDate(id))} · Son güncelleme: ${fmtDate(p.updatedAt)}</span></div>
+    <div class="foot"><span>FAM Pano · yazdırma ${new Date().toLocaleString('tr-TR')}</span><span>Son kontrol: ${fmtDate(lastInspectionDate(id))} · Son güncelleme: ${fmtDate(p.updatedAt)}</span></div>
   </div>`;
 }
 
@@ -1454,6 +1659,7 @@ function render() {
     case 'loto': html = viewLoto(); break;
     case 'ara': html = viewSearch(q); break;
     case 'ayarlar': html = viewSettings(); break;
+    case 'katalog': html = viewCatalog(q); break;
     case 'yazdir': html = viewPrint(id); break;
     default: html = notFound();
   }
@@ -1583,11 +1789,11 @@ const actions = {
     const list = S.where('circuits', (c) => c.siteId === s.id).sort((a, b) => R.naturalCompare(S.get('panels', a.panelId)?.code, S.get('panels', b.panelId)?.code) || R.naturalCompare(a.code, b.code));
     download(`${slug(s.code || s.name)}-devreler.csv`, R.toCsv(list, CIRCUIT_COLUMNS), 'text/csv;charset=utf-8');
   },
-  'csv-all': () => download(`pano-saha-devreler-${today()}.csv`, R.toCsv(S.all('circuits'), CIRCUIT_COLUMNS), 'text/csv;charset=utf-8'),
-  'csv-inspections': () => download(`pano-saha-kontroller-${today()}.csv`, R.toCsv(S.all('inspections'), INSPECTION_COLUMNS), 'text/csv;charset=utf-8'),
+  'csv-all': () => download(`fam-pano-devreler-${today()}.csv`, R.toCsv(S.all('circuits'), CIRCUIT_COLUMNS), 'text/csv;charset=utf-8'),
+  'csv-inspections': () => download(`fam-pano-kontroller-${today()}.csv`, R.toCsv(S.all('inspections'), INSPECTION_COLUMNS), 'text/csv;charset=utf-8'),
   'csv-audit': () =>
     download(
-      `pano-saha-gecmis-${today()}.csv`,
+      `fam-pano-gecmis-${today()}.csv`,
       R.toCsv(S.auditLog(), [
         { label: 'Zaman', key: 'at' },
         { label: 'Kullanıcı', key: 'by' },
@@ -1600,7 +1806,7 @@ const actions = {
     ),
   backup: async (d) => {
     const data = await S.exportBackup({ includePhotos: d.photos === '1' });
-    download(`pano-saha-yedek-${today()}.json`, JSON.stringify(data), 'application/json');
+    download(`fam-pano-yedek-${today()}.json`, JSON.stringify(data), 'application/json');
     toast('Yedek indirildi.');
   },
   demo: () => {
@@ -1615,7 +1821,15 @@ const actions = {
     toast('Tüm veriler silindi.');
     location.hash = '#/';
   },
-  print: () => window.print()
+  print: () => window.print(),
+  'new-product': () => productForm(null),
+  'edit-product': (d) => productForm((S.settings().customProducts || []).find((p) => p.id === d.id)),
+  'copy-product': (d) => productForm(null, { copyOf: productOf(d.id) }),
+  'csv-bom': (d) => {
+    const { parts } = parseHash();
+    const circuits = parts[0] === 'pano' ? circuitsOf(parts[1]) : withPanelCodes(S.where('circuits', (c) => c.siteId === parts[1]));
+    download(`${d.file}.csv`, R.toCsv(C.billOfMaterials(circuits, products()), BOM_COLUMNS), 'text/csv;charset=utf-8');
+  }
 };
 
 function parseSiteFromHash() {
@@ -1678,8 +1892,8 @@ app.addEventListener('submit', (e) => {
   const f = new FormData(e.target);
   const theme = f.get('theme');
   try {
-    if (theme === 'auto') localStorage.removeItem('pano-saha:theme');
-    else localStorage.setItem('pano-saha:theme', theme);
+    if (theme === 'auto') localStorage.removeItem('fam-pano:theme');
+    else localStorage.setItem('fam-pano:theme', theme);
   } catch {}
   applyTheme();
   S.updateSettings({
@@ -1704,7 +1918,7 @@ document.getElementById('who').addEventListener('click', () => {
 function applyTheme() {
   let t = null;
   try {
-    t = localStorage.getItem('pano-saha:theme');
+    t = localStorage.getItem('fam-pano:theme');
   } catch {}
   if (t) document.documentElement.dataset.theme = t;
   else delete document.documentElement.dataset.theme;

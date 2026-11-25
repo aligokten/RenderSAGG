@@ -1,5 +1,5 @@
 /**
- * Pano Saha — elektrik kuralları ve katalog.
+ * FAM Pano — elektrik kuralları ve katalog.
  * Saf JavaScript: tarayıcıda ve Node testlerinde aynen çalışır (içe aktarım yok).
  *
  * ÖNEMLİ: Buradaki kontroller sahadaki kayıt hatalarını yakalamak için YARDIMCI uyarılardır.
