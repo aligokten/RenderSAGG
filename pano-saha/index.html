@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#14171c" />
+  <title>Pano Saha — Şantiye Pano ve Sigorta Kaydı</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23f2b705'/><path d='M56 10 24 56h22l-6 34 34-48H52z' fill='%23141414'/></svg>" />
+  <script defer src="./vendor/qrcode.js"></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar no-print">
+    <a class="brand" href="#/">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M13.5 2 5 13.5h6L9.5 22 19 9.5h-6.2z" fill="currentColor"/></svg>
+      </span>
+      <span>
+        <b>Pano Saha</b>
+        <small>Şantiye pano ve sigorta kaydı</small>
+      </span>
+    </a>
+    <form class="search" id="search-form" role="search">
+      <input id="search" type="search" placeholder="Ara: pano kodu, devre, mahal, kablo…" autocomplete="off" aria-label="Ara" />
+    </form>
+    <span class="who" id="who" title="Kayıtlara işlenecek kullanıcı adı"></span>
+  </header>
+
+  <div class="shell">
+    <nav class="sidenav no-print" id="nav" aria-label="Ana menü">
+      <a href="#/" data-nav="ozet"><span class="ic">◎</span><span>Özet</span></a>
+      <a href="#/santiyeler" data-nav="santiyeler"><span class="ic">▦</span><span>Şantiyeler</span></a>
+      <a href="#/uyarilar" data-nav="uyarilar"><span class="ic">⚠</span><span>Uyarılar</span><em id="nav-alerts" class="count" hidden></em></a>
+      <a href="#/kontroller" data-nav="kontroller"><span class="ic">✓</span><span>Kontroller</span></a>
+      <a href="#/loto" data-nav="loto"><span class="ic">🔒</span><span>LOTO</span><em id="nav-loto" class="count" hidden></em></a>
+      <a href="#/ayarlar" data-nav="ayarlar"><span class="ic">⚙</span><span>Ayarlar</span></a>
+    </nav>
+    <main id="app" class="main" tabindex="-1"></main>
+  </div>
+
+  <dialog id="modal" class="modal">
+    <form method="dialog" id="modal-form" novalidate>
+      <header class="modal-head">
+        <h2 id="modal-title"></h2>
+        <button type="button" class="icon-btn" data-act="modal-close" aria-label="Kapat">✕</button>
+      </header>
+      <div class="modal-body" id="modal-body"></div>
+      <footer class="modal-foot" id="modal-foot"></footer>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

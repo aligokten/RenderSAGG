@@ -1,6 +1,9 @@
 # Mimari Render Paneli
 
-Ham iç/dış mekân renderlarını **mimari projeye sadık kalarak** işleyen web paneli. İki ekrandan oluşur:
+Ham iç/dış mekân renderlarını **mimari projeye sadık kalarak** işleyen web paneli.
+
+> Depoda ayrıca bağımsız bir saha uygulaması bulunur: **[Pano Saha](#pano-saha--şantiye-pano-ve-sigorta-kaydı-pano-saha)** — şantiye pano ve sigorta kaydı
+> (https://aligokten.github.io/RenderSAGG/pano-saha/). İki ekrandan oluşur:
 
 | Ekran | Adres | İşi |
 | --- | --- | --- |
@@ -110,6 +113,57 @@ Pages yapılandırması: **Settings → Pages → Source: `main` / `(root)`**. D
 statik panel `server/` ve `public/` altındaki ortak dosyaları doğrudan içe aktarır — kural seti
 kopyalanmaz. `test/browser-safe.test.js` bu iki modülün tarayıcı-uyumlu kalmasını denetler: birine
 Node bağımlılığı eklenirse test kırılır.
+
+---
+
+# Pano Saha — şantiye pano ve sigorta kaydı (`/pano-saha/`)
+
+Elektrikçinin **her şantiyedeki panolarını ve sigortalarını** kayıt altında tuttuğu sunucusuz saha
+uygulaması: **https://aligokten.github.io/RenderSAGG/pano-saha/**
+
+Kurulum gerektirmez; telefonda da masaüstünde de çalışır. Veriler cihazın tarayıcısında saklanır
+(kayıtlar localStorage, fotoğraflar IndexedDB) ve hiçbir sunucuya gönderilmez.
+
+## Veri modeli
+
+| Kayıt | İçerik |
+| --- | --- |
+| **Şantiye** | Ad, kod, adres, işveren, elektrik yüklenicisi, şantiye şefi, elektrik sorumlusu, abone/sayaç no, trafo ve sözleşme gücü, durum (Aktif / Askıda / Tamamlandı), fotoğraflar |
+| **Pano** | Kod, ad, tür (geçici şantiye ana/tali, ADP, kat, motor, asansör, kompanzasyon…), konum, durum, **besleyen pano ve besleyen devre** (pano ağacı), giriş cihazı ve anma akımı, giriş kaçak akım, kısa devre seviyesi (kA), topraklama sistemi, IP sınıfı, besleme kablosu, ray sayısı × modül, sorumlu, kontrol aralığı, fotoğraflar |
+| **Devre / sigorta** | No (F1…), beslediği yer, yük türü, mahal, cihaz (MCB, RCBO, RCCB, MCCB, NH, motor koruma, kontaktör, parafudr…), eğri, anma akımı, kutup, faz, kesme kapasitesi, kaçak akım mA ve tipi, bağlı olduğu kaçak akım rölesi, kablo tipi/damar/kesit/uzunluk, kW, cos φ, marka, durum (Aktif / Yedek / Kapalı / Arızalı / Kilitli-LOTO) |
+| **Kontrol** | Tarih, tür (görsel, RCD testi, topraklama, izolasyon, çevrim empedansı, termal kamera, sıkılık, yetkili periyodik kontrol), sonuç, ölçümler (RA Ω, Riso MΩ, Zs Ω, RCD ms/mA, °C), bulgular, yapılacaklar, fotoğraflar |
+| **Olay** | Sigorta attı, arıza, değişim, bakım, LOTO kilitleme/açma, not — pano veya devre bazında, fotoğraflı |
+| **Geçmiş** | Her ekleme/güncelleme/silme; kim, ne zaman, hangi alan neyden neye |
+
+## Ekranlar
+
+- **Özet:** aktif şantiye/pano/devre sayıları, kayıt hataları, geciken kontroller, LOTO'daki devreler, son olaylar ve değişiklikler.
+- **Şantiye:** pano ağacı (hangi pano hangi panonun hangi devresinden besleniyor), tüm devreler, kontroller, olaylar, bilgiler, geçmiş.
+- **Pano:** devre tablosu (arama/durum/faz/uyarı filtresi, tek dokunuşla 🔒 LOTO ve ⚡ "sigorta attı"), **pano önden görünümü** (DIN ray, modül genişliğiyle, kaçak akım grupları rölenin yanında), **yük ve faz** (L1/L2/L3 akımı, dengesizlik, giriş şalteri sınırı, en az yüklü faz önerisi), uyarılar, kontroller, olaylar, QR, geçmiş. Toplu devre ekleme (fazları sırayla dağıtır) ve panoyu devreleriyle kopyalama.
+- **Etiket / liste (yazdır):** A4 pano kapağı devre listesi, tehlike şeridi, QR kod ve cihazların altına yapıştırılacak modül genişliğinde etiket şeridi.
+- **Uyarılar, Kontroller (takvim + kayıtlar), LOTO, Arama, Ayarlar.**
+
+## Otomatik denetimler
+
+Kablo kesiti ↔ sigorta anma akımı (Cu/PVC, yöntem C, 30 °C; düzeltme faktörsüz), yük akımı ↔ anma akımı,
+kesme kapasitesi ↔ pano kısa devre seviyesi, priz / ıslak hacim / seyyar / konteyner devrelerinde ≤30 mA
+kaçak akım (kendi RCBO'su, bağlı RCCB, pano girişi veya üst pano zinciri), faz dengesizliği, giriş
+şalteri kullanım oranı, üst–alt pano seçiciliği, mükerrer devre numarası, kontrol vadesi, LOTO sahibi.
+Kurallar `pano-saha/lib/rules.js` içinde, testleri `test/pano-saha.test.js` içindedir.
+
+> Denetimler kayıt hatalarını yakalamak içindir; elektrik projesinin, kısa devre/seçicilik hesabının ve
+> yetkili kişinin periyodik kontrolünün yerini tutmaz.
+
+## Yedek ve ekip içi paylaşım
+
+**Ayarlar → Yedek indir** tüm kayıtları (isteğe bağlı fotoğraflarla) tek JSON dosyasına yazar.
+**Birleştir** ile yüklemede aynı kimlikli kayıtlardan `updatedAt` değeri yeni olan korunur, diğerleri
+eklenir; böylece birden çok cihaz dosya ile eşitlenebilir. **Tümünü değiştir** cihazdaki veriyi
+yedekle değiştirir. Devre, kontrol ve geçmiş listeleri Excel uyumlu CSV olarak da dışa aktarılır.
+
+QR kodu panonun bu uygulamadaki adresini taşır; kayıtlar cihazda tutulduğu için, QR'ı okutan cihazda
+aynı yedeğin yüklü olması gerekir. QR üretimi `pano-saha/vendor/qrcode.js` (qrcode-generator 1.4.4,
+MIT, Kazuhiko Arase) ile cihazda yapılır; şantiyede internet olmasa da çalışır.
 
 ---
 
