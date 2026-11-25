@@ -1,17 +1,18 @@
 /**
- * Pano Saha — veri katmanı.
+ * FAM Pano — veri katmanı.
  * Kayıtlar localStorage'da tek JSON olarak, fotoğraflar IndexedDB'de tutulur.
  * Hiçbir veri bir sunucuya gönderilmez; paylaşım/yedek JSON dosyası ile yapılır.
  */
 
-const KEY = 'pano-saha:v1';
+const KEY = 'fam-pano:v1';
 export const COLLECTIONS = ['sites', 'panels', 'circuits', 'inspections', 'events'];
 
 const DEFAULT_SETTINGS = {
   userName: '',
   inspectionIntervalDays: 30,
   defaultCosphi: 0.9,
-  codePrefix: 'F'
+  codePrefix: 'F',
+  customProducts: []
 };
 
 function emptyDb() {
@@ -183,14 +184,14 @@ export function auditLog(filter = () => true) {
 export async function exportBackup({ includePhotos = true } = {}) {
   const out = JSON.parse(JSON.stringify(db));
   out.exportedAt = new Date().toISOString();
-  out.app = 'pano-saha';
+  out.app = 'fam-pano';
   if (includePhotos) out.photoData = await allPhotos();
   return out;
 }
 
 export function validateBackup(data) {
   if (!data || typeof data !== 'object') return 'Dosya JSON nesnesi değil.';
-  if (data.app && data.app !== 'pano-saha') return 'Bu dosya Pano Saha yedeği değil.';
+  if (data.app && !['fam-pano', 'pano-saha'].includes(data.app)) return 'Bu dosya FAM Pano yedeği değil.';
   if (!Array.isArray(data.sites) || !Array.isArray(data.panels) || !Array.isArray(data.circuits)) {
     return 'Dosyada şantiye/pano/devre listeleri yok.';
   }
@@ -256,7 +257,7 @@ let idbPromise = null;
 function idb() {
   if (!idbPromise) {
     idbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open('pano-saha-photos', 1);
+      const req = indexedDB.open('fam-pano-photos', 1);
       req.onupgradeneeded = () => req.result.createObjectStore('photos', { keyPath: 'id' });
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);

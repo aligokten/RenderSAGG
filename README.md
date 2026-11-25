@@ -1,9 +1,9 @@
 # Mimari Render Paneli
 
-Ham iç/dış mekân renderlarını **mimari projeye sadık kalarak** işleyen web paneli.
+> Depoda ayrıca bağımsız bir saha uygulaması bulunur: **[FAM Pano](#fam-pano--şantiye-pano-ve-sigorta-kaydı-fam-pano)** — şantiye pano ve sigorta kaydı
+> (https://aligokten.github.io/RenderSAGG/fam-pano/).
 
-> Depoda ayrıca bağımsız bir saha uygulaması bulunur: **[Pano Saha](#pano-saha--şantiye-pano-ve-sigorta-kaydı-pano-saha)** — şantiye pano ve sigorta kaydı
-> (https://aligokten.github.io/RenderSAGG/pano-saha/). İki ekrandan oluşur:
+Ham iç/dış mekân renderlarını **mimari projeye sadık kalarak** işleyen web paneli. İki ekrandan oluşur:
 
 | Ekran | Adres | İşi |
 | --- | --- | --- |
@@ -116,10 +116,10 @@ Node bağımlılığı eklenirse test kırılır.
 
 ---
 
-# Pano Saha — şantiye pano ve sigorta kaydı (`/pano-saha/`)
+# FAM Pano — şantiye pano ve sigorta kaydı (`/fam-pano/`)
 
 Elektrikçinin **her şantiyedeki panolarını ve sigortalarını** kayıt altında tuttuğu sunucusuz saha
-uygulaması: **https://aligokten.github.io/RenderSAGG/pano-saha/**
+uygulaması: **https://aligokten.github.io/RenderSAGG/fam-pano/**
 
 Kurulum gerektirmez; telefonda da masaüstünde de çalışır. Veriler cihazın tarayıcısında saklanır
 (kayıtlar localStorage, fotoğraflar IndexedDB) ve hiçbir sunucuya gönderilmez.
@@ -130,7 +130,7 @@ Kurulum gerektirmez; telefonda da masaüstünde de çalışır. Veriler cihazın
 | --- | --- |
 | **Şantiye** | Ad, kod, adres, işveren, elektrik yüklenicisi, şantiye şefi, elektrik sorumlusu, abone/sayaç no, trafo ve sözleşme gücü, durum (Aktif / Askıda / Tamamlandı), fotoğraflar |
 | **Pano** | Kod, ad, tür (geçici şantiye ana/tali, ADP, kat, motor, asansör, kompanzasyon…), konum, durum, **besleyen pano ve besleyen devre** (pano ağacı), giriş cihazı ve anma akımı, giriş kaçak akım, kısa devre seviyesi (kA), topraklama sistemi, IP sınıfı, besleme kablosu, ray sayısı × modül, sorumlu, kontrol aralığı, fotoğraflar |
-| **Devre / sigorta** | No (F1…), beslediği yer, yük türü, mahal, cihaz (MCB, RCBO, RCCB, MCCB, NH, motor koruma, kontaktör, parafudr…), eğri, anma akımı, kutup, faz, kesme kapasitesi, kaçak akım mA ve tipi, bağlı olduğu kaçak akım rölesi, kablo tipi/damar/kesit/uzunluk, kW, cos φ, marka, durum (Aktif / Yedek / Kapalı / Arızalı / Kilitli-LOTO) |
+| **Devre / sigorta** | No (F1…), beslediği yer, yük türü, mahal, cihaz (MCB, RCBO, RCCB, MCCB, NH, motor koruma, kontaktör, parafudr…), eğri, anma akımı, kutup, faz, kesme kapasitesi, kaçak akım mA ve tipi, bağlı olduğu kaçak akım rölesi, kablo tipi/damar/kesit/uzunluk, kW, cos φ, **marka / seri / model (katalogdan)**, durum (Aktif / Yedek / Kapalı / Arızalı / Kilitli-LOTO) |
 | **Kontrol** | Tarih, tür (görsel, RCD testi, topraklama, izolasyon, çevrim empedansı, termal kamera, sıkılık, yetkili periyodik kontrol), sonuç, ölçümler (RA Ω, Riso MΩ, Zs Ω, RCD ms/mA, °C), bulgular, yapılacaklar, fotoğraflar |
 | **Olay** | Sigorta attı, arıza, değişim, bakım, LOTO kilitleme/açma, not — pano veya devre bazında, fotoğraflı |
 | **Geçmiş** | Her ekleme/güncelleme/silme; kim, ne zaman, hangi alan neyden neye |
@@ -141,7 +141,33 @@ Kurulum gerektirmez; telefonda da masaüstünde de çalışır. Veriler cihazın
 - **Şantiye:** pano ağacı (hangi pano hangi panonun hangi devresinden besleniyor), tüm devreler, kontroller, olaylar, bilgiler, geçmiş.
 - **Pano:** devre tablosu (arama/durum/faz/uyarı filtresi, tek dokunuşla 🔒 LOTO ve ⚡ "sigorta attı"), **pano önden görünümü** (DIN ray, modül genişliğiyle, kaçak akım grupları rölenin yanında), **yük ve faz** (L1/L2/L3 akımı, dengesizlik, giriş şalteri sınırı, en az yüklü faz önerisi), uyarılar, kontroller, olaylar, QR, geçmiş. Toplu devre ekleme (fazları sırayla dağıtır) ve panoyu devreleriyle kopyalama.
 - **Etiket / liste (yazdır):** A4 pano kapağı devre listesi, tehlike şeridi, QR kod ve cihazların altına yapıştırılacak modül genişliğinde etiket şeridi.
-- **Uyarılar, Kontroller (takvim + kayıtlar), LOTO, Arama, Ayarlar.**
+- **Uyarılar, Kontroller (takvim + kayıtlar), LOTO, Katalog, Arama, Ayarlar.**
+
+## Hazır ürün kataloğu (sigorta grubu)
+
+Devre, toplu devre ve pano giriş formlarında teknisyen **Marka → Seri** seçer; cihaz türü, eğri, anma
+akımı, kutup, kesme kapasitesi ve kaçak akım (mA, tip) seçenekleri o serinin katalog aralığına
+daralır ve uygun değerler otomatik dolar. Seri dışı bir değer girilirse uyarı verilir.
+
+| Marka | Seriler |
+| --- | --- |
+| Legrand | RX³ 4500, DX³ 6000, DX³ 10000 (MCB) · RX³ ID, DX³-ID (RCCB) · DX³ RCBO · DPX³ 160 / 250 (MCCB) · Parafudr Tip 2 |
+| Siemens | 5SL6, 5SY4 (MCB) · 5SV3 (RCCB) · 5SU1 (RCBO) · 3VA1 (MCCB) · 3NA3 (NH gG) · 5SD7 (SPD) |
+| Viko | MCB · RCCB · RCBO — *genel tanım* |
+| Panasonic | MCB · RCCB · RCBO — *genel tanım* |
+| Schneider Electric | Easy9, Acti9 iC60N / iC60H (MCB) · Easy9 RCCB, Acti9 iID · Acti9 iDPN N Vigi (RCBO) · EasyPact CVS (MCCB) · Acti9 iPRD |
+| ABB | S200, S200M (MCB) · F200 (RCCB) · DS201 (RCBO) · Tmax XT1 (MCCB) · OVR T2 |
+| Hager | MBN/MCN 6 kA, NBN/NCN/NDN 10 kA (MCB) · RCCB, RCBO — *genel tanım* |
+| Eaton | xPole PL6 / PL7 (MCB) · xPole PF6 (RCCB) |
+
+Katalog seri düzeyindedir ve sipariş kodu içermez; değerler üretici kataloglarındaki tipik aralıklardır.
+**Genel tanım** işaretli kayıtlarda seri adı doğrulanmamıştır — teknisyen etiketteki model kodunu
+"Model / ürün kodu" alanına yazar. **Katalog** ekranından listede olmayan seriler "Kendi ürünüm" olarak
+eklenir (yerleşik bir seriden kopyalanarak da), bunlar yedek dosyasına dahildir. Katalog
+`fam-pano/lib/catalog.js` içindedir.
+
+Şantiye ve pano ekranındaki **Malzeme listesi**, kullanılan cihazları marka/seri/eğri/anma/kutup/mA
+kombinasyonuna göre adetleriyle çıkarır ve CSV olarak indirilir.
 
 ## Otomatik denetimler
 
@@ -149,7 +175,7 @@ Kablo kesiti ↔ sigorta anma akımı (Cu/PVC, yöntem C, 30 °C; düzeltme fakt
 kesme kapasitesi ↔ pano kısa devre seviyesi, priz / ıslak hacim / seyyar / konteyner devrelerinde ≤30 mA
 kaçak akım (kendi RCBO'su, bağlı RCCB, pano girişi veya üst pano zinciri), faz dengesizliği, giriş
 şalteri kullanım oranı, üst–alt pano seçiciliği, mükerrer devre numarası, kontrol vadesi, LOTO sahibi.
-Kurallar `pano-saha/lib/rules.js` içinde, testleri `test/pano-saha.test.js` içindedir.
+Kurallar `fam-pano/lib/rules.js` içinde, testleri `test/fam-pano.test.js` içindedir.
 
 > Denetimler kayıt hatalarını yakalamak içindir; elektrik projesinin, kısa devre/seçicilik hesabının ve
 > yetkili kişinin periyodik kontrolünün yerini tutmaz.
@@ -162,7 +188,7 @@ eklenir; böylece birden çok cihaz dosya ile eşitlenebilir. **Tümünü deği�
 yedekle değiştirir. Devre, kontrol ve geçmiş listeleri Excel uyumlu CSV olarak da dışa aktarılır.
 
 QR kodu panonun bu uygulamadaki adresini taşır; kayıtlar cihazda tutulduğu için, QR'ı okutan cihazda
-aynı yedeğin yüklü olması gerekir. QR üretimi `pano-saha/vendor/qrcode.js` (qrcode-generator 1.4.4,
+aynı yedeğin yüklü olması gerekir. QR üretimi `fam-pano/vendor/qrcode.js` (qrcode-generator 1.4.4,
 MIT, Kazuhiko Arase) ile cihazda yapılır; şantiyede internet olmasa da çalışır.
 
 ---
